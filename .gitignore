@@ -1,0 +1,33 @@
+@"
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+*.egg-info/
+
+# Node
+node_modules/
+npm-debug.log*
+
+# WhatsApp session
+.wwebjs_auth/
+.wwebjs_cache/
+
+# Base de datos local
+*.db
+*.sqlite
+
+# Variables de entorno
+.env
+.env.local
+
+# VS Code
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+"@ | Out-File -Encoding utf8 .gitignore

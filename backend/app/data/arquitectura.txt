@@ -1,0 +1,52 @@
+backend/
+│
+├── app/
+│   │
+│   ├── main.py
+│   │
+│   ├── api/
+│   │   ├── routes_chat.py  - endpoint para consultar mensajes del usuario
+│   │   ├── routes_vision.py  - endpoint para obtener o mandar los resultados del vlm
+│   │   ├── routes_inventory.py - endpoint para añadir o consultar inventario
+│   │   └── routes_users.py  - endpoint para consultar o publicar usuarios
+
+|   |___whathsapp/
+|   |   |__/carpetas
+│   │
+│   ├── services/
+│   │   ├── llm_service.py  - se comunica con el llm en caso de que sea desde la ampi ollama o se carga aquí el llm
+│   │   ├── vision_service.py - le llega una imagen y los manda al vlm
+│   │   ├── nutrition_service.py  - logica nutrimental, calorias, pesos, proteinas, planes alimenticios etc
+│   │   ├── recipe_service.py  - genera recetas, le llega el inventario y construye el prompts para mandar al llm
+│   │   └── whatsapp_service.py - Todo lo relacionado con whaths, se comunica con whaths
+│   │
+│   ├── models/ - toda la estructura de los datos que se guardaran en el sql
+│   │   ├── user_model.py
+│   │   ├── inventory_model.py
+│   │   └── meal_model.py
+│   │
+│   ├── database/  - donde se aojará el sql
+│   │   ├── connection.py
+│   │   └── sql.py
+|   |   |__inventory.db
+│   │
+│   ├── mqtt/
+│   │   ├── mqtt_client.py
+│   │   └── mqtt_subscriber.py
+│   │
+│   ├── prompts/  - contexto para el llm, son los promps largos
+│   │   ├── recipe_prompt.txt
+│   │   ├── nutrition_prompt.txt
+│   │   └── shopping_prompt.txt
+│   │
+│   ├── utils/
+│   │   ├── logger.py
+│   │   ├── validators.py
+│   │   └── timers.py
+│   │
+│   └── config/
+│       └── settings.py
+│
+├── requirements.txt
+├── .env
+└── README.md

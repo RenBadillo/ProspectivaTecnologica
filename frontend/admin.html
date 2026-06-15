@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NutriPantry AI — Dashboard</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-icon">🥫</div>
+      <div>
+        <h1>NutriPantry</h1>
+        <p>Alacena inteligente</p>
+      </div>
+    </div>
+
+    <nav class="nav">
+      <button class="nav-item active" data-section="dashboard">
+        <span>📊</span> Dashboard
+      </button>
+      <button class="nav-item" data-section="inventory">
+        <span>📋</span> Inventario
+      </button>
+      <button class="nav-item" data-section="chat">
+        <span>💬</span> Chat bot
+      </button>
+      <button class="nav-item" data-section="history">
+        <span>🕓</span> Historial
+      </button>
+      <button class="nav-item" data-section="copilots">
+        <span>🤖</span> Copilotos
+      </button>
+    </nav>
+
+    <div class="sidebar-status">
+      <div><span id="dotBackend" class="dot"></span> Backend</div>
+      <div><span id="dotOllama" class="dot"></span> Ollama</div>
+      <div><span id="dotChat" class="dot"></span> Chat API</div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div>
+        <h2 id="pageTitle">Dashboard</h2>
+        <p id="pageSubtitle">Resumen general del sistema</p>
+      </div>
+      <button id="refreshBtn" class="btn ghost">Actualizar</button>
+    </header>
+
+    <section id="dashboard" class="section active">
+      <div class="hero">
+        <div>
+          <p class="eyebrow">Sistema activo</p>
+          <h2>Panel de control de tu alacena inteligente</h2>
+          <p>Consulta inventario, prueba el bot, revisa historial y valida respuestas del LLM desde un solo lugar.</p>
+        </div>
+        <button class="btn primary" onclick="showSection('chat')">Probar chat</button>
+      </div>
+
+      <div class="stats-grid">
+        <article class="stat-card">
+          <span>Productos</span>
+          <strong id="statProducts">—</strong>
+          <small>en inventario</small>
+        </article>
+        <article class="stat-card">
+          <span>Stock bajo</span>
+          <strong id="statLowStock">—</strong>
+          <small>cantidad ≤ 2</small>
+        </article>
+        <article class="stat-card">
+          <span>Mensajes</span>
+          <strong id="statMessages">—</strong>
+          <small>en historial</small>
+        </article>
+        <article class="stat-card">
+          <span>Modelo</span>
+          <strong class="model-text">llama3.2</strong>
+          <small>Ollama local</small>
+        </article>
+      </div>
+
+      <div class="grid-2">
+        <article class="card">
+          <div class="card-head">
+            <h3>Inventario reciente</h3>
+            <button class="link-btn" onclick="showSection('inventory')">Ver todo</button>
+          </div>
+          <div id="dashInventory" class="mini-list"></div>
+        </article>
+
+        <article class="card">
+          <div class="card-head">
+            <h3>Últimos mensajes</h3>
+            <button class="link-btn" onclick="showSection('history')">Ver historial</button>
+          </div>
+          <div id="dashHistory" class="mini-list"></div>
+        </article>
+      </div>
+    </section>
+
+    <section id="inventory" class="section">
+      <article class="card">
+        <div class="card-head stack-mobile">
+          <div>
+            <h3>Inventario</h3>
+            <p class="muted">Agrega o descuenta productos manualmente.</p>
+          </div>
+          <div class="toolbar">
+            <input id="inventorySearch" placeholder="Buscar producto..." />
+            <button id="reloadInventoryBtn" class="btn ghost">Recargar</button>
+          </div>
+        </div>
+
+        <form id="addInventoryForm" class="inventory-form">
+          <input id="productName" placeholder="Producto, ej. lata de atún" required />
+          <input id="productQuantity" type="number" min="1" value="1" required />
+          <select id="productSource">
+            <option value="frontend">Frontend</option>
+            <option value="manual">Manual</option>
+            <option value="whatsapp">WhatsApp</option>
+            <option value="vision">Visión</option>
+          </select>
+          <button class="btn primary" type="submit">Agregar</button>
+        </form>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Producto</th>
+                <th>Cantidad</th>
+                <th>Fuente</th>
+                <th>Actualización</th>
+                <th>Estado</th>
+                <th>Acción</th>
+              </tr>
+            </thead>
+            <tbody id="inventoryTable"></tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+
+    <section id="chat" class="section">
+      <div class="chat-layout">
+        <aside class="card side-card">
+          <h3>Comandos útiles</h3>
+          <button class="preset" data-msg="dame el inventario">Ver inventario</button>
+          <button class="preset" data-msg="dame una receta para hoy">Receta</button>
+          <button class="preset" data-msg="dame lista de compras">Lista de compras</button>
+          <button class="preset" data-msg="hazme un plan semanal">Plan semanal</button>
+          <button class="preset" data-msg="agrega:\n2 lata de atún\n1 paquete de arroz">Agregar productos</button>
+          <button class="preset" data-msg="elimina:\n1 huevo">Eliminar productos</button>
+
+          <label class="field">
+            Identificador de prueba
+            <input id="chatNumber" value="demo_frontend" />
+          </label>
+        </aside>
+
+        <article class="card chat-card">
+          <div class="card-head">
+            <div>
+              <h3>Chat principal</h3>
+              <p class="muted">Usa el mismo endpoint que WhatsApp: <code>/chat</code></p>
+            </div>
+          </div>
+
+          <div id="chatWindow" class="chat-window"></div>
+
+          <form id="chatForm" class="chat-form">
+            <textarea id="chatInput" placeholder="Escribe aquí tu mensaje..."></textarea>
+            <button class="btn primary" type="submit">Enviar</button>
+          </form>
+        </article>
+      </div>
+    </section>
+
+    <section id="history" class="section">
+      <article class="card">
+        <div class="card-head">
+          <div>
+            <h3>Historial</h3>
+            <p class="muted">Mensajes procesados por el backend.</p>
+          </div>
+          <button id="reloadHistoryBtn" class="btn ghost">Recargar</button>
+        </div>
+        <div id="historyList" class="history-list"></div>
+      </article>
+    </section>
+
+    <section id="copilots" class="section">
+      <div class="copilot-layout">
+        <aside class="card settings-card">
+          <h3>Configuración del copiloto</h3>
+
+          <label class="field">
+            Perfil
+            <select id="copilotProfile"></select>
+          </label>
+
+          <label class="field">
+            Modelo
+            <select id="copilotModel">
+              <option value="llama3.2:3b">llama3.2:3b</option>
+              <option value="qwen2.5:7b">qwen2.5:7b</option>
+              <option value="gemma3:4b">gemma3:4b</option>
+              <option value="mistral:7b">mistral:7b</option>
+            </select>
+          </label>
+
+          <label class="field">
+            System prompt
+            <textarea id="systemPrompt" class="prompt-box"></textarea>
+          </label>
+
+          <div class="small-grid">
+            <label class="field">Temperature<input id="temperature" type="number" step="0.05" value="0.4" /></label>
+            <label class="field">Top-p<input id="topP" type="number" step="0.05" value="0.9" /></label>
+            <label class="field">Tokens<input id="numPredict" type="number" value="250" /></label>
+            <label class="field">Penalty<input id="repeatPenalty" type="number" step="0.05" value="1.1" /></label>
+          </div>
+        </aside>
+
+        <article class="card chat-card">
+          <div class="card-head">
+            <div>
+              <h3>Copilotos</h3>
+              <p class="muted">Prueba perfiles especializados con <code>/chat/admin</code>.</p>
+            </div>
+          </div>
+
+          <div id="copilotWindow" class="chat-window"></div>
+
+          <form id="copilotForm" class="chat-form">
+            <textarea id="copilotInput" placeholder="Escribe una prueba para el copiloto..."></textarea>
+            <button class="btn primary" type="submit">Enviar</button>
+          </form>
+
+          <div id="metricsPanel" class="metrics-panel hidden"></div>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
