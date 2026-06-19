@@ -170,7 +170,6 @@ class ChatRouterService:
 
         step = session["step"]
         data = session["data"]
-
         text = message.strip()
 
         try:
@@ -457,20 +456,70 @@ class ChatRouterService:
         inventory = self.inventory_service.load_inventory_from_db()
 
         if not inventory:
-            return "Tu inventario está vacío. Agrega productos primero."
+            return (
+                "Tu inventario está vacío. "
+                "Agrega productos primero."
+            )
 
-        lines = [
-            f"- {item['name']} (cantidad: {item['quantity']})"
-            for item in inventory
-        ]
+        lines = []
 
-        return "Inventario actual:\n" + "\n".join(lines)
+        for item in inventory:
+            category = item.get(
+                "category_label",
+                "sin categoría"
+            )
+
+            threshold = item.get(
+                "threshold_days"
+            )
+
+            threshold_text = (
+                f"vida útil sugerida: {threshold} días"
+                if threshold
+                else "vida útil no definida"
+            )
+
+            days = item.get(
+                "days_in_inventory",
+                0
+            )
+
+            lines.append(
+                f"- {item['name']} "
+                f"(cantidad: {item['quantity']}, "
+                f"{days} días en inventario, "
+                f"{category}, "
+                f"{threshold_text})"
+            )
+
+        reminders = (
+            self.inventory_service
+            .get_consumption_reminders()
+        )
+
+        response = (
+            "Inventario actual:\n"
+            + "\n".join(lines)
+        )
+
+        if reminders:
+            response += "\n\nRecordatorios de consumo:\n"
+
+            for reminder in reminders:
+                response += (
+                    f"- {reminder['message']}\n"
+                )
+
+        return response.strip()
 
     def handle_inventory_analysis(self) -> str:
         inventory = self.inventory_service.load_inventory_from_db()
 
         if not inventory:
-            return "Tu inventario está vacío. No hay productos para analizar."
+            return (
+                "Tu inventario está vacío. "
+                "No hay productos para analizar."
+            )
 
         analysis = self.inventory_analysis_service.analyze_inventory(
             inventory
