@@ -1,3 +1,4 @@
+from app.services.agent_decision_service import AgentDecisionService
 from app.models.user_profile import UserProfile
 from app.database.user_repository import UserRepository
 from app.services.inventory_service import InventoryService
@@ -22,6 +23,7 @@ class ChatRouterService:
         self.nutrition_service = NutritionService()
         self.user_repository = UserRepository()
         self.llm_service = LLMService()
+        self.agent_decision_service = AgentDecisionService()
 
     def classify(self, message: str) -> str:
         text = message.lower().strip()
@@ -109,6 +111,17 @@ class ChatRouterService:
             )
 
         intent = self.classify(message)
+        inventory = self.inventory_service.load_inventory_from_db()
+
+        inventory_state = (
+            self.agent_decision_service
+            .analyze_inventory_state(inventory)
+        )
+
+        agent_message = (
+            self.agent_decision_service
+            .build_agent_message(inventory_state)
+        )
 
         if intent == "register_profile":
             return self.handle_register_profile(
@@ -129,9 +142,26 @@ class ChatRouterService:
             return self.handle_inventory_analysis()
 
         if intent == "recipe":
-            return await self.recipe_service.generate_recipe(
-                whatsapp_number
+            agent_context = (
+                self.agent_decision_service
+                .build_recipe_priority_context(
+                    inventory_state
+                )
             )
+
+            recipe = await self.recipe_service.generate_recipe(
+                whatsapp_number,
+                agent_context=agent_context
+            )
+
+            if agent_message:
+                return (
+                    agent_message
+                    + "\n\nRecomendación del agente:\n"
+                    + recipe
+                )
+
+            return recipe
 
         if intent == "shopping":
             return self.handle_shopping()
@@ -146,7 +176,12 @@ class ChatRouterService:
                 whatsapp_number
             )
 
-        return await self.handle_general(message)
+        general_response = await self.handle_general(
+            message,
+            agent_message=agent_message
+        )
+
+        return general_response
 
     def start_registration(
         self,
@@ -637,6 +672,7 @@ class ChatRouterService:
     async def handle_general(
         self,
         message: str
+        agent_message: str = ""
     ) -> str:
 
         inventory = self.inventory_service.load_inventory_from_db()
@@ -655,6 +691,7 @@ class ChatRouterService:
                 "Eres un asistente de alacena inteligente. "
                 "Responde en español, claro y breve.\n"
                 f"Inventario: {inventory_text}\n"
+                f"Observaciones del agente: {agent_message or 'sin alertas'}\n"
                 f"Usuario: {message}"
             ),
             temperature=0.4,
