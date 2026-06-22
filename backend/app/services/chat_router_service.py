@@ -671,7 +671,7 @@ class ChatRouterService:
 
     async def handle_general(
         self,
-        message: str
+        message: str,
         agent_message: str = ""
     ) -> str:
 

@@ -9,7 +9,6 @@ from app.utils.inventory_formatter import InventoryFormatter
 class RecipeService:
 
     def __init__(self):
-
         self.inventory_service = InventoryService()
         self.user_repository = UserRepository()
         self.nutrition_service = NutritionService()
@@ -17,7 +16,8 @@ class RecipeService:
 
     async def generate_recipe(
         self,
-        whatsapp_number: str
+        whatsapp_number: str,
+        agent_context: str = ""
     ) -> str:
 
         user = self.user_repository.get_by_whatsapp(
@@ -63,29 +63,43 @@ class RecipeService:
         final_prompt = f"""
 {base_prompt}
 
-INGREDIENTES DISPONIBLES:
-{inventory_text}
+PERFIL DEL USUARIO
 
-LISTA ESTRICTA DE INGREDIENTES PERMITIDOS:
-{", ".join(available_ingredients)}
-
-PERFIL DEL USUARIO:
 Nombre: {user.name}
+Edad: {user.age}
+Sexo: {user.sex}
+Peso: {user.weight}
+Altura: {user.height}
 Objetivo: {user.goal}
 Restricciones: {user.dietary_restrictions}
 Preferencias: {user.food_preferences}
 
-OBJETIVOS DIARIOS DEL USUARIO:
+OBJETIVOS DIARIOS DEL USUARIO
+
 Calorías diarias objetivo: {nutrition.calories_target}
 Proteínas diarias objetivo: {nutrition.protein_target}
 Carbohidratos diarios objetivo: {nutrition.carb_target}
 Grasas diarias objetivo: {nutrition.fat_target}
 
-IMPORTANTE:
-No copies estos valores como si fueran los nutrientes de la receta.
+INVENTARIO DISPONIBLE
+
+{inventory_text}
+
+LISTA ESTRICTA DE INGREDIENTES PERMITIDOS
+
+{", ".join(available_ingredients)}
+
+CONTEXTO DEL AGENTE
+
+{agent_context}
+
+IMPORTANTE
+
+No copies los valores nutricionales diarios como si fueran los nutrientes de la receta.
 La información nutrimental de la receta debe ser una estimación aproximada solo del platillo generado.
 
-INSTRUCCIÓN FINAL:
+INSTRUCCIÓN FINAL
+
 La receta principal debe usar únicamente ingredientes de la lista permitida.
 No tienes que usar todo el inventario disponible.
 Usa cantidades razonables por porción.
