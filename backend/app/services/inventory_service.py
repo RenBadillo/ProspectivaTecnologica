@@ -8,32 +8,6 @@ from app.database.connection import get_connection
 class InventoryService:
 
     PERISHABLE_RULES = {
-        "meat": {
-            "keywords": [
-                "pollo",
-                "pechuga",
-                "carne",
-                "res",
-                "cerdo",
-                "chuleta",
-                "molida"
-            ],
-            "threshold_days": 2,
-            "label": "carne o proteína fresca"
-        },
-        "fish": {
-            "keywords": [
-                "pescado",
-                "salmón",
-                "salmon",
-                "tilapia",
-                "camarón",
-                "camaron",
-                "marisco"
-            ],
-            "threshold_days": 2,
-            "label": "pescado o marisco"
-        },
         "cooked_food": {
             "keywords": [
                 "cocido",
@@ -43,23 +17,12 @@ class InventoryService:
                 "caldo",
                 "arroz cocido",
                 "pasta cocida",
-                "pollo cocido"
+                "pollo cocido",
+                "sobras",
+                "comida preparada"
             ],
             "threshold_days": 3,
-            "label": "comida preparada"
-        },
-        "dairy": {
-            "keywords": [
-                "leche",
-                "yogurt",
-                "yoghurt",
-                "queso",
-                "crema",
-                "requesón",
-                "requeson"
-            ],
-            "threshold_days": 7,
-            "label": "lácteo"
+            "label": "sobras o comida preparada"
         },
         "fruit": {
             "keywords": [
@@ -107,54 +70,6 @@ class InventoryService:
             ],
             "threshold_days": 5,
             "label": "verdura"
-        },
-        "bread": {
-            "keywords": [
-                "pan",
-                "bolillo",
-                "tortilla",
-                "tortillas",
-                "pan integral"
-            ],
-            "threshold_days": 5,
-            "label": "pan o tortilla"
-        },
-        "egg": {
-            "keywords": [
-                "huevo",
-                "huevos"
-            ],
-            "threshold_days": 21,
-            "label": "huevo"
-        },
-        "canned": {
-            "keywords": [
-                "lata",
-                "enlatado",
-                "atún",
-                "atun",
-                "sardina",
-                "frijoles en lata",
-                "elote en lata"
-            ],
-            "threshold_days": 180,
-            "label": "enlatado"
-        },
-        "dry_goods": {
-            "keywords": [
-                "arroz",
-                "pasta",
-                "avena",
-                "harina",
-                "azúcar",
-                "azucar",
-                "sal",
-                "cereal",
-                "frijol",
-                "lenteja"
-            ],
-            "threshold_days": 365,
-            "label": "producto seco"
         }
     }
 

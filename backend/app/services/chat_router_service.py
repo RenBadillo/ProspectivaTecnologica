@@ -111,6 +111,7 @@ class ChatRouterService:
             )
 
         intent = self.classify(message)
+
         inventory = self.inventory_service.load_inventory_from_db()
 
         inventory_state = (
@@ -130,16 +131,26 @@ class ChatRouterService:
             )
 
         if intent == "add_inventory":
-            return self.handle_add_inventory(message)
+            return self.add_agent_notice(
+                self.handle_add_inventory(message),
+                agent_message
+            )
 
         if intent == "remove_inventory":
-            return self.handle_remove_inventory(message)
+            return self.add_agent_notice(
+                self.handle_remove_inventory(message),
+                agent_message
+            )
 
         if intent == "inventory":
-            return self.handle_inventory()
+            return self.add_agent_notice(
+            )
 
         if intent == "inventory_analysis":
-            return self.handle_inventory_analysis()
+            return self.add_agent_notice(
+                self.handle_inventory_analysis(),
+                agent_message
+            )
 
         if intent == "recipe":
             agent_context = (
@@ -154,26 +165,33 @@ class ChatRouterService:
                 agent_context=agent_context
             )
 
-            if agent_message:
-                return (
-                    agent_message
-                    + "\n\nRecomendación del agente:\n"
-                    + recipe
-                )
-
-            return recipe
+            return self.add_agent_notice(
+                "Recomendación del agente:\n" + recipe,
+                agent_message
+            )
 
         if intent == "shopping":
-            return self.handle_shopping()
+            shopping_response = self.handle_shopping()
+
+            return self.add_agent_notice(
+                "Lista sugerida:\n" + shopping_response,
+                agent_message
+            )
 
         if intent == "nutrition":
-            return self.handle_nutrition(
-                whatsapp_number
+            return self.add_agent_notice(
+                self.handle_nutrition(whatsapp_number),
+                agent_message
             )
 
         if intent == "meal_plan":
-            return self.handle_meal_plan(
+            meal_plan = self.handle_meal_plan(
                 whatsapp_number
+            )
+
+            return self.add_agent_notice(
+                "Plan sugerido:\n" + meal_plan,
+                agent_message
             )
 
         general_response = await self.handle_general(
@@ -181,7 +199,10 @@ class ChatRouterService:
             agent_message=agent_message
         )
 
-        return general_response
+        return self.add_agent_notice(
+            general_response,
+            agent_message
+        )
 
     def start_registration(
         self,
@@ -342,6 +363,22 @@ class ChatRouterService:
             "Escribe cualquier mensaje y te registraré paso a paso."
         )
 
+    def add_agent_notice(
+        self,
+        response: str,
+        agent_message: str
+    ) -> str:
+
+        if not agent_message:
+            return response
+
+        return (
+            "Aviso del agente:\n"
+            + agent_message
+            + "\n\n"
+            + response
+        )
+
     def handle_add_inventory(self, message: str) -> str:
         lines = message.lower().splitlines()
         added_items = []
@@ -487,7 +524,7 @@ class ChatRouterService:
 
         return response
 
-    def handle_inventory(self) -> str:
+    (self) -> str:
         inventory = self.inventory_service.load_inventory_from_db()
 
         if not inventory:
@@ -561,7 +598,7 @@ class ChatRouterService:
         )
 
         response = "Análisis de inventario:\n\n"
-
+def handle_inventory
         if analysis["missing"]:
             response += (
                 "Productos agotados:\n"
@@ -690,7 +727,7 @@ class ChatRouterService:
             prompt=(
                 "Eres un asistente de alacena inteligente. "
                 "Responde en español, claro y breve.\n"
-                f"Inventario: {inventory_text}\n"
+                f"Inventario completo: {inventory_text}\n"
                 f"Observaciones del agente: {agent_message or 'sin alertas'}\n"
                 f"Usuario: {message}"
             ),
