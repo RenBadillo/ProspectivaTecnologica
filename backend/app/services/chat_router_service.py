@@ -144,6 +144,8 @@ class ChatRouterService:
 
         if intent == "inventory":
             return self.add_agent_notice(
+                self.handle_inventory(),
+                agent_message
             )
 
         if intent == "inventory_analysis":
@@ -524,7 +526,7 @@ class ChatRouterService:
 
         return response
 
-    (self) -> str:
+    def handle_inventory(self) -> str:
         inventory = self.inventory_service.load_inventory_from_db()
 
         if not inventory:
@@ -598,7 +600,7 @@ class ChatRouterService:
         )
 
         response = "Análisis de inventario:\n\n"
-def handle_inventory
+
         if analysis["missing"]:
             response += (
                 "Productos agotados:\n"
