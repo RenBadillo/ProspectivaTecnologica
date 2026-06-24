@@ -251,6 +251,7 @@
         </article>
       </div>
     </section>
+
     <section id="metrics" class="section">
       <div class="stats-grid">
         <article class="stat-card">
@@ -288,7 +289,35 @@
           <strong id="metricResponseRate">0%</strong>
           <small>respuesta no vacía</small>
         </article>
+      </div>
+
+      <article class="card">
+        <div class="card-head">
+          <div>
+            <h3>Matriz de evaluación técnica</h3>
+            <p class="muted">
+              Resume calidad de decisión, salida estructurada, arquitectura y operación.
+            </p>
+          </div>
+          <button id="reloadEvaluationMatrixBtn" class="btn ghost">
+            Recargar matriz
+          </button>
         </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Dimensión</th>
+                <th>Pregunta principal</th>
+                <th>Métricas asociadas</th>
+                <th>Resultado actual</th>
+              </tr>
+            </thead>
+            <tbody id="evaluationMatrixTable"></tbody>
+          </table>
+        </div>
+      </article>
 
       <article class="card">
         <div class="card-head">

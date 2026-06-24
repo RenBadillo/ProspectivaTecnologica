@@ -34,11 +34,7 @@ async function fetchJSON(url, options = {}) {
   const data = await res.json().catch(() => ({}));
 
   if (!res.ok) {
-    throw new Error(
-      data.detail ||
-      data.message ||
-      "Error del backend"
-    );
+    throw new Error(data.detail || data.message || "Error del backend");
   }
 
   return data;
@@ -53,6 +49,7 @@ function showSection(section) {
 
   if (section === "metrics") {
     loadInventoryMetrics();
+    loadEvaluationMatrix();
   }
 
   if (section === "evaluation") {
@@ -407,7 +404,16 @@ function bindEvents() {
     });
   });
 
-  $("reloadMetricsBtn").addEventListener("click", loadInventoryMetrics);
+  if ($("reloadMetricsBtn")) {
+    $("reloadMetricsBtn").addEventListener("click", loadInventoryMetrics);
+  }
+
+  if ($("reloadEvaluationMatrixBtn")) {
+    $("reloadEvaluationMatrixBtn").addEventListener(
+      "click",
+      loadEvaluationMatrix
+    );
+  }
 
   if ($("reloadEvaluationBtn")) {
     $("reloadEvaluationBtn").addEventListener("click", loadEvaluation);
@@ -447,6 +453,7 @@ async function refreshAll() {
 
   if (activeSection === "metrics") {
     await loadInventoryMetrics();
+    await loadEvaluationMatrix();
   }
 
   if (activeSection === "evaluation") {
@@ -599,6 +606,85 @@ async function runInventoryTests() {
   });
 
   await loadEvaluation();
+  await loadEvaluationMatrix();
+}
+
+async function loadEvaluationMatrix() {
+  const data = await fetchJSON(`${API}/metrics/evaluation-dashboard`);
+
+  const quality = data.quality || {};
+  const structured = data.structured_output || {};
+  const architecture = data.architecture || {};
+  const operation = data.operation || {};
+
+  const accuracy = Number(quality.accuracy || 0) * 100;
+  const precision = Number(quality.precision || 0) * 100;
+  const recall = Number(quality.recall || 0) * 100;
+  const f1 = Number(quality.f1_score || 0) * 100;
+
+  const jsonValidity =
+    Number(structured.json_validity_rate || 0) * 100;
+
+  const schemaValidity =
+    Number(structured.schema_valid_rate || 0) * 100;
+
+  const architectureSuccess =
+    Number(architecture.architecture_success_rate || 0) * 100;
+
+  const avgLatency =
+    Number(operation.chat?.avg_latency || 0);
+
+  const totalTokens =
+    Number(operation.llm?.total_tokens || 0);
+
+  const tokensPerSecond =
+    Number(operation.llm?.avg_tokens_per_second || 0);
+
+  $("evaluationMatrixTable").innerHTML = `
+    <tr>
+      <td>Calidad de decisión</td>
+      <td>¿El motor clasificó correctamente la intención?</td>
+      <td>Accuracy, precision, recall, F1-score, matriz de confusión</td>
+      <td>
+        Accuracy: ${accuracy.toFixed(1)}%<br>
+        Precision: ${precision.toFixed(1)}%<br>
+        Recall: ${recall.toFixed(1)}%<br>
+        F1-score: ${f1.toFixed(1)}%
+      </td>
+    </tr>
+
+    <tr>
+      <td>Salida estructurada</td>
+      <td>¿El backend entregó JSON válido y usable por software?</td>
+      <td>JSON validity rate, schema valid</td>
+      <td>
+        JSON válido: ${jsonValidity.toFixed(1)}%<br>
+        Schema válido: ${schemaValidity.toFixed(1)}%
+      </td>
+    </tr>
+
+    <tr>
+      <td>Arquitectura</td>
+      <td>¿El backend procesó correctamente la solicitud?</td>
+      <td>Backend success rate, architecture success</td>
+      <td>
+        Solicitudes: ${architecture.total_requests || 0}<br>
+        Éxito arquitectura: ${architectureSuccess.toFixed(1)}%
+      </td>
+    </tr>
+
+    <tr>
+      <td>Operación</td>
+      <td>¿Cuánto tarda, cuántos tokens usa y cuánto costaría?</td>
+      <td>Latencia, tokens, tokens/s, costo estimado</td>
+      <td>
+        Latencia promedio: ${avgLatency.toFixed(4)} s<br>
+        Tokens totales: ${totalTokens}<br>
+        Tokens/s promedio: ${tokensPerSecond.toFixed(2)}<br>
+        Costo local Ollama: $0
+      </td>
+    </tr>
+  `;
 }
 
 function shortText(text, maxLength = 120) {
