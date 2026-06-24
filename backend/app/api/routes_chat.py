@@ -1,45 +1,93 @@
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field
+import time
+
+from fastapi import APIRouter
+from pydantic import BaseModel
 
 from app.services.chat_router_service import ChatRouterService
+from app.database.metrics_repository import MetricsRepository
 
 
 router = APIRouter()
-historial = []
+
 chat_router = ChatRouterService()
+metrics_repository = MetricsRepository()
 
 
-class MensajeEntrada(BaseModel):
-    numero: str = Field(..., min_length=1)
-    mensaje: str = Field(..., min_length=1)
-
-
-class RespuestaChat(BaseModel):
+class ChatInput(BaseModel):
     numero: str
-    respuesta: str
-
-
-@router.post("/chat", response_model=RespuestaChat)
-async def recibir_mensaje(entrada: MensajeEntrada):
-    if not entrada.mensaje.strip():
-        raise HTTPException(status_code=400, detail="Mensaje vacío")
-
-    respuesta = await chat_router.handle_message(entrada.numero, entrada.mensaje)
-
-    historial.append({
-        "numero": entrada.numero,
-        "mensaje": entrada.mensaje,
-        "respuesta": respuesta,
-    })
-
-    return RespuestaChat(numero=entrada.numero, respuesta=respuesta)
-
-
-@router.get("/chat/historial")
-async def ver_historial():
-    return {"total": len(historial), "mensajes": historial}
+    mensaje: str
 
 
 @router.get("/chat/health")
-async def health():
-    return {"status": "ok", "servicio": "chat"}
+async def chat_health():
+    return {
+        "status": "chat ok"
+    }
+
+
+@router.post("/chat")
+async def recibir_mensaje(
+    entrada: ChatInput
+):
+    start_time = time.perf_counter()
+
+    try:
+        intent = chat_router.classify(
+            entrada.mensaje
+        )
+
+        respuesta = await chat_router.handle_message(
+            entrada.numero,
+            entrada.mensaje
+        )
+
+        latency_seconds = round(
+            time.perf_counter() - start_time,
+            4
+        )
+
+        metrics_repository.save_chat_message(
+            numero=entrada.numero,
+            mensaje=entrada.mensaje,
+            respuesta=respuesta,
+            intent=intent,
+            latency_seconds=latency_seconds,
+            success=True,
+            error=None
+        )
+
+        return {
+            "numero": entrada.numero,
+            "respuesta": respuesta,
+            "intent": intent,
+            "latency_seconds": latency_seconds
+        }
+
+    except Exception as error:
+        latency_seconds = round(
+            time.perf_counter() - start_time,
+            4
+        )
+
+        metrics_repository.save_chat_message(
+            numero=entrada.numero,
+            mensaje=entrada.mensaje,
+            respuesta="",
+            intent="error",
+            latency_seconds=latency_seconds,
+            success=False,
+            error=str(error)
+        )
+
+        raise error
+
+
+@router.get("/chat/historial")
+async def obtener_historial():
+    mensajes = metrics_repository.get_chat_history(
+        limit=100
+    )
+
+    return {
+        "mensajes": mensajes
+    }
