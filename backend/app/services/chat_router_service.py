@@ -32,6 +32,21 @@ class ChatRouterService:
             return "register_profile"
 
         if any(p in text for p in [
+            "cambia", "cambiar", "renombra", "renombrar",
+            "corrige", "corregir"
+        ]):
+            return "rename_inventory"
+
+        if any(p in text for p in [
+            "recordatorio", "recordatorios",
+            "caducidad", "caducar",
+            "consumir pronto",
+            "qué se va a echar a perder",
+            "que se va a echar a perder"
+        ]):
+            return "reminders"
+
+        if any(p in text for p in [
             "agrega", "agregar", "puedes agregar",
             "añade", "añadir", "compré", "compre",
             "sumar al inventario"
@@ -130,29 +145,23 @@ class ChatRouterService:
                 message
             )
 
+        if intent == "rename_inventory":
+            return self.handle_rename_inventory(message)
+
+        if intent == "reminders":
+            return self.handle_reminders()
+
         if intent == "add_inventory":
-            return self.add_agent_notice(
-                self.handle_add_inventory(message),
-                agent_message
-            )
+            return self.handle_add_inventory(message)
 
         if intent == "remove_inventory":
-            return self.add_agent_notice(
-                self.handle_remove_inventory(message),
-                agent_message
-            )
+            return self.handle_remove_inventory(message)
 
         if intent == "inventory":
-            return self.add_agent_notice(
-                self.handle_inventory(),
-                agent_message
-            )
+            return self.handle_inventory()
 
         if intent == "inventory_analysis":
-            return self.add_agent_notice(
-                self.handle_inventory_analysis(),
-                agent_message
-            )
+            return self.handle_inventory_analysis()
 
         if intent == "recipe":
             agent_context = (
@@ -176,14 +185,13 @@ class ChatRouterService:
             shopping_response = self.handle_shopping()
 
             return self.add_agent_notice(
-                "Lista sugerida:\n" + shopping_response,
+                shopping_response,
                 agent_message
             )
 
         if intent == "nutrition":
-            return self.add_agent_notice(
-                self.handle_nutrition(whatsapp_number),
-                agent_message
+            return self.handle_nutrition(
+                whatsapp_number
             )
 
         if intent == "meal_plan":
@@ -192,18 +200,13 @@ class ChatRouterService:
             )
 
             return self.add_agent_notice(
-                "Plan sugerido:\n" + meal_plan,
+                meal_plan,
                 agent_message
             )
 
-        general_response = await self.handle_general(
+        return await self.handle_general(
             message,
             agent_message=agent_message
-        )
-
-        return self.add_agent_notice(
-            general_response,
-            agent_message
         )
 
     def start_registration(
@@ -359,12 +362,6 @@ class ChatRouterService:
 
         return "Ocurrió un error durante el registro."
 
-    def profile_not_found_message(self) -> str:
-        return (
-            "No encontré tu perfil nutricional.\n\n"
-            "Escribe cualquier mensaje y te registraré paso a paso."
-        )
-
     def add_agent_notice(
         self,
         response: str,
@@ -379,6 +376,110 @@ class ChatRouterService:
             + agent_message
             + "\n\n"
             + response
+        )
+
+    def handle_inventory(self) -> str:
+        inventory = self.inventory_service.load_inventory_from_db()
+
+        if not inventory:
+            return (
+                "Tu inventario está vacío. "
+                "Agrega productos primero."
+            )
+
+        lines = []
+
+        for item in inventory:
+            lines.append(
+                f"- {item['name']} "
+                f"(cantidad: {item['quantity']})"
+            )
+
+        return (
+            "Inventario actual:\n"
+            + "\n".join(lines)
+        )
+
+    def handle_reminders(self) -> str:
+        reminders = (
+            self.inventory_service
+            .get_consumption_reminders()
+        )
+
+        if not reminders:
+            return (
+                "No detecté productos que necesiten "
+                "recordatorio de consumo por ahora."
+            )
+
+        lines = []
+
+        for reminder in reminders:
+            lines.append(
+                f"- {reminder['name']} "
+                f"({reminder['days_in_inventory']} días, "
+                f"{reminder['category_label']})"
+            )
+
+        return (
+            "Productos que conviene consumir pronto:\n"
+            + "\n".join(lines)
+        )
+
+    def handle_rename_inventory(self, message: str) -> str:
+        text = message.lower().strip()
+
+        patterns = [
+            ("cambia", "por"),
+            ("cambiar", "por"),
+            ("renombra", "como"),
+            ("renombrar", "como"),
+            ("corrige", "por"),
+            ("corregir", "por")
+        ]
+
+        old_name = None
+        new_name = None
+
+        for start_word, separator in patterns:
+            if start_word in text and separator in text:
+                clean_text = (
+                    text.replace(start_word, "", 1)
+                    .replace("el producto", "")
+                    .replace("producto", "")
+                    .strip()
+                )
+
+                parts = clean_text.split(separator, 1)
+
+                if len(parts) == 2:
+                    old_name = parts[0].strip()
+                    new_name = parts[1].strip()
+                    break
+
+        if not old_name or not new_name:
+            return (
+                "No pude identificar qué producto quieres cambiar.\n\n"
+                "Usa este formato:\n"
+                "cambia cooper por cereal\n\n"
+                "o:\n"
+                "renombra cooper como cereal"
+            )
+
+        success = self.inventory_service.rename_food(
+            old_name=old_name,
+            new_name=new_name
+        )
+
+        if not success:
+            return (
+                f"No encontré '{old_name}' en el inventario. "
+                "Revisa el nombre exacto e inténtalo de nuevo."
+            )
+
+        return (
+            "Producto actualizado correctamente:\n"
+            f"- {old_name} → {new_name}"
         )
 
     def handle_add_inventory(self, message: str) -> str:
@@ -526,66 +627,6 @@ class ChatRouterService:
 
         return response
 
-    def handle_inventory(self) -> str:
-        inventory = self.inventory_service.load_inventory_from_db()
-
-        if not inventory:
-            return (
-                "Tu inventario está vacío. "
-                "Agrega productos primero."
-            )
-
-        lines = []
-
-        for item in inventory:
-            category = item.get(
-                "category_label",
-                "sin categoría"
-            )
-
-            threshold = item.get(
-                "threshold_days"
-            )
-
-            threshold_text = (
-                f"vida útil sugerida: {threshold} días"
-                if threshold
-                else "vida útil no definida"
-            )
-
-            days = item.get(
-                "days_in_inventory",
-                0
-            )
-
-            lines.append(
-                f"- {item['name']} "
-                f"(cantidad: {item['quantity']}, "
-                f"{days} días en inventario, "
-                f"{category}, "
-                f"{threshold_text})"
-            )
-
-        reminders = (
-            self.inventory_service
-            .get_consumption_reminders()
-        )
-
-        response = (
-            "Inventario actual:\n"
-            + "\n".join(lines)
-        )
-
-        if reminders:
-            response += "\n\nRecordatorios de consumo:\n"
-
-            for reminder in reminders:
-                response += (
-                    f"- {reminder['message']}\n"
-                )
-
-        return response.strip()
-
     def handle_inventory_analysis(self) -> str:
         inventory = self.inventory_service.load_inventory_from_db()
 
@@ -666,7 +707,10 @@ class ChatRouterService:
         )
 
         if not user:
-            return self.profile_not_found_message()
+            return (
+                "No encontré tu perfil nutricional.\n\n"
+                "Escribe cualquier mensaje y te registraré paso a paso."
+            )
 
         profile = self.nutrition_service.generate_profile(
             user
@@ -692,7 +736,10 @@ class ChatRouterService:
         )
 
         if not user:
-            return self.profile_not_found_message()
+            return (
+                "No encontré tu perfil nutricional.\n\n"
+                "Escribe cualquier mensaje y te registraré paso a paso."
+            )
 
         profile = self.nutrition_service.generate_profile(
             user

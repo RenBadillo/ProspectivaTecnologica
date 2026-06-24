@@ -81,8 +81,7 @@ class InventoryService:
         )
 
         with open(path, "r", encoding="utf-8") as file:
-            inventory = json.load(file)
-            return inventory
+            return json.load(file)
 
     def add_food(
         self,
@@ -143,6 +142,35 @@ class InventoryService:
                 quantity,
                 name.lower().strip(),
                 quantity
+            )
+        )
+
+        conn.commit()
+        updated_rows = cursor.rowcount
+        conn.close()
+
+        return updated_rows > 0
+
+    def rename_food(
+        self,
+        old_name: str,
+        new_name: str
+    ) -> bool:
+
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """
+            UPDATE inventory
+            SET
+                name = ?,
+                last_update = CURRENT_TIMESTAMP
+            WHERE name = ?
+            """,
+            (
+                new_name.lower().strip(),
+                old_name.lower().strip()
             )
         )
 
@@ -273,8 +301,7 @@ class InventoryService:
                     f"{item['name']} lleva "
                     f"{item['days_in_inventory']} días en inventario. "
                     f"Como es {item['category_label']}, "
-                    f"se recomienda consumirlo alrededor de "
-                    f"{item['threshold_days']} días para evitar desperdicio."
+                    "conviene consumirlo pronto para evitar desperdicio."
                 )
             })
 
