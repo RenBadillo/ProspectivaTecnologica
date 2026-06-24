@@ -171,7 +171,7 @@ class ChatRouterService:
                 )
             )
 
-            recipe = await self.recipe_service.generate_recipe(
+            return await self.recipe_service.generate_recipe(
                 whatsapp_number,
                 agent_context=agent_context
             )
@@ -182,12 +182,7 @@ class ChatRouterService:
             )
 
         if intent == "shopping":
-            shopping_response = self.handle_shopping()
-
-            return self.add_agent_notice(
-                shopping_response,
-                agent_message
-            )
+            return self.handle_shopping()
 
         if intent == "nutrition":
             return self.handle_nutrition(
@@ -195,13 +190,8 @@ class ChatRouterService:
             )
 
         if intent == "meal_plan":
-            meal_plan = self.handle_meal_plan(
+            return self.handle_meal_plan(
                 whatsapp_number
-            )
-
-            return self.add_agent_notice(
-                meal_plan,
-                agent_message
             )
 
         return await self.handle_general(
