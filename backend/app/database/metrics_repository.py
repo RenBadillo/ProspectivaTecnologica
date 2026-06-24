@@ -246,30 +246,6 @@ class MetricsRepository:
 
         return [dict(row) for row in rows]
 
-    def get_inventory_summary(self):
-
-        conn = get_connection()
-        cursor = conn.cursor()
-
-        cursor.execute(
-            """
-            SELECT
-                COUNT(*) AS total_inventory_queries,
-                AVG(latency_seconds) AS avg_inventory_latency,
-                MIN(latency_seconds) AS min_inventory_latency,
-                MAX(latency_seconds) AS max_inventory_latency,
-                SUM(success) AS successful_queries
-            FROM chat_history
-            WHERE intent = 'inventory'
-            """
-        )
-
-        summary = dict(cursor.fetchone())
-
-        conn.close()
-
-        return summary
-
     def get_intent_test_summary(self):
 
         conn = get_connection()
@@ -311,3 +287,41 @@ class MetricsRepository:
         conn.close()
 
         return [dict(row) for row in rows]
+
+    def get_inventory_summary(self):
+
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """
+            SELECT
+                COUNT(*) AS total_queries,
+                AVG(latency_seconds) AS avg_latency,
+                MIN(latency_seconds) AS min_latency,
+                MAX(latency_seconds) AS max_latency,
+                SUM(success) AS successful_queries,
+                AVG(
+                    CASE
+                        WHEN respuesta IS NOT NULL
+                        AND TRIM(respuesta) != ''
+                        THEN 1.0
+                        ELSE 0.0
+                    END
+                ) AS response_rate,
+                AVG(
+                    CASE
+                        WHEN intent != 'general'
+                        THEN 1.0
+                        ELSE 0.0
+                    END
+                ) AS intent_precision
+            FROM chat_history
+            """
+        )
+
+        summary = dict(cursor.fetchone())
+
+        conn.close()
+
+        return summary

@@ -479,22 +479,32 @@ async function loadInventoryMetrics() {
   const history = historyData.history || [];
 
   $("metricInventoryTotal").textContent =
-    summary.total_inventory_queries ?? 0;
+  summary.total_queries ?? 0;
 
   $("metricInventoryAvg").textContent =
-    summary.avg_inventory_latency
-      ? Number(summary.avg_inventory_latency).toFixed(4)
-      : "0";
-
+  summary.avg_latency
+    ? Number(summary.avg_latency).toFixed(4)
+    : "0";
+    
   $("metricInventoryMin").textContent =
-    summary.min_inventory_latency
-      ? Number(summary.min_inventory_latency).toFixed(4)
-      : "0";
+  summary.min_latency
+    ? Number(summary.min_latency).toFixed(4)
+    : "0";
 
   $("metricInventoryMax").textContent =
-    summary.max_inventory_latency
-      ? Number(summary.max_inventory_latency).toFixed(4)
-      : "0";
+  summary.max_latency
+    ? Number(summary.max_latency).toFixed(4)
+    : "0";
+
+  $("metricIntentPrecision").textContent =
+  summary.intent_precision
+    ? `${(Number(summary.intent_precision) * 100).toFixed(1)}%`
+    : "0%";
+
+  $("metricResponseRate").textContent =
+  summary.response_rate
+    ? `${(Number(summary.response_rate) * 100).toFixed(1)}%`
+    : "0%";
 
   $("inventoryMetricsTable").innerHTML =
     history.map((item) => {
