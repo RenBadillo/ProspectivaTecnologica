@@ -13,7 +13,7 @@ Reglas obligatorias:
 - No tienes que usar todo el inventario disponible.
 - Usa cantidades razonables por porción.
 
-Porciones razonables:
+Porciones razonables (por ejemplo):
 - pollo: 120 a 180 g por porción
 - arroz cocido: 100 a 180 g por porción
 - verduras: 1 a 2 piezas o tazas

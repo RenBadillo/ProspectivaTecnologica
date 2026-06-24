@@ -118,7 +118,23 @@ class AgentDecisionService:
         urgent_items = inventory_state["urgent_items"]
         soon_items = inventory_state["soon_items"]
 
-        priority_items = urgent_items + soon_items
+        total_priority = (
+            len(urgent_items)
+            + len(soon_items)
+        )
+        
+        if total_priority == 0:
+            return(
+                "No existen ingredientes prioritarios"
+                "por antigüedad"
+            )
+
+        return (
+            f"Existen {total_priority} ingredientes "
+            "prioritarios por antigüedad"
+            "Priorízalos cuando sea razonable, "
+            "pero considera todo el Inventario."
+        )
 
         if not priority_items:
             return (
