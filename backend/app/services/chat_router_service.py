@@ -61,10 +61,24 @@ class ChatRouterService:
             return "remove_inventory"
 
         if any(p in text for p in [
-            "inventario", "qué tengo", "que tengo",
-            "qué hay", "que hay", "mis productos",
-            "alacena"
-        ]):
+            "inventario",
+            "qué tengo",
+            "que tengo",
+            "qué hay",
+            "que hay",
+            "mis productos",
+            "mis alimentos",
+            "mis cosas",
+            "qué productos tengo",
+            "que productos tengo",
+            "productos tengo",
+            "qué comida tengo",
+            "que comida tengo",
+            "qué hay en mi alacena",
+            "que hay en mi alacena",
+            "alacena",
+            "despensa"
+         ]):
             return "inventory"
 
         if any(p in text for p in [

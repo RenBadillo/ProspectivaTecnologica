@@ -5,442 +5,602 @@ let profiles = {};
 let activeSection = "dashboard";
 
 const titles = {
-    dashboard: ["Dashboard", "Resumen general del sistema"],
-    inventory: ["Inventario", "Gestión de productos"],
-    chat: ["Chat bot", "Prueba del flujo principal"],
-    history: ["Historial", "Mensajes procesados por el backend"],
-    copilots: ["Copilotos", "Perfiles especializados del LLM"]
+  dashboard: ["Dashboard", "Resumen general del sistema"],
+  inventory: ["Inventario", "Gestión de productos"],
+  chat: ["Chat bot", "Prueba del flujo principal"],
+  history: ["Historial", "Mensajes procesados por el backend"],
+  copilots: ["Copilotos", "Perfiles especializados del LLM"],
+  metrics: ["Métricas", "Evaluación del flujo de inventario"],
+  evaluation: ["Evaluación", "Pruebas de intención, precisión y rendimiento"]
 };
 
 function $(id) {
-    return document.getElementById(id);
+  return document.getElementById(id);
 }
 
 function esc(text) {
-    return String(text ?? "")
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;");
+  return String(text ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
 }
 
 function setDot(id, ok) {
-    $(id).className = ok ? "dot ok" : "dot bad";
+  $(id).className = ok ? "dot ok" : "dot bad";
 }
 
 async function fetchJSON(url, options = {}) {
-    const res = await fetch(url, options);
-    const data = await res.json().catch(() => ({}));
+  const res = await fetch(url, options);
+  const data = await res.json().catch(() => ({}));
 
-    if (!res.ok) {
-        throw new Error(
-            data.detail ||
-            data.message ||
-            "Error del backend"
-        );
-    }
+  if (!res.ok) {
+    throw new Error(
+      data.detail ||
+      data.message ||
+      "Error del backend"
+    );
+  }
 
-    return data;
+  return data;
 }
 
 function showSection(section) {
-    activeSection = section;
+  activeSection = section;
 
-    document.querySelectorAll(".section").forEach((el) => {
-        el.classList.toggle("active", el.id === section);
-    });
+  document.querySelectorAll(".section").forEach((el) => {
+    el.classList.toggle("active", el.id === section);
+  });
 
-    document.querySelectorAll(".nav-item").forEach((btn) => {
-        btn.classList.toggle("active", btn.dataset.section === section);
-    });
+  if (section === "metrics") {
+    loadInventoryMetrics();
+  }
 
-    $("pageTitle").textContent = titles[section][0];
-    $("pageSubtitle").textContent = titles[section][1];
+  if (section === "evaluation") {
+    loadEvaluation();
+  }
 
-    if (section === "dashboard") loadDashboard();
-    if (section === "inventory") loadInventory();
-    if (section === "history") loadHistory();
+  document.querySelectorAll(".nav-item").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.section === section);
+  });
+
+  $("pageTitle").textContent = titles[section][0];
+  $("pageSubtitle").textContent = titles[section][1];
+
+  if (section === "dashboard") loadDashboard();
+  if (section === "inventory") loadInventory();
+  if (section === "history") loadHistory();
 }
 
 async function checkStatus() {
-    try {
-        await fetchJSON(`${API}/health`);
-        setDot("dotBackend", true);
-    } catch {
-        setDot("dotBackend", false);
-    }
+  try {
+    await fetchJSON(`${API}/health`);
+    setDot("dotBackend", true);
+  } catch {
+    setDot("dotBackend", false);
+  }
 
-    try {
-        const res = await fetch("http://localhost:11434/api/tags");
-        setDot("dotOllama", res.ok);
-    } catch {
-        setDot("dotOllama", false);
-    }
+  try {
+    const res = await fetch("http://localhost:11434/api/tags");
+    setDot("dotOllama", res.ok);
+  } catch {
+    setDot("dotOllama", false);
+  }
 
-    try {
-        await fetchJSON(`${API}/chat/health`);
-        setDot("dotChat", true);
-    } catch {
-        setDot("dotChat", false);
-    }
+  try {
+    await fetchJSON(`${API}/chat/health`);
+    setDot("dotChat", true);
+  } catch {
+    setDot("dotChat", false);
+  }
 }
 
 async function loadDashboard() {
-    await Promise.allSettled([
-        loadInventory(false),
-        loadHistory(false)
-    ]);
+  await Promise.allSettled([
+    loadInventory(false),
+    loadHistory(false)
+  ]);
 
-    $("statProducts").textContent = inventory.length;
+  $("statProducts").textContent = inventory.length;
 
-    $("statLowStock").textContent = inventory.filter((item) => {
-        return Number(item.quantity) <= 2;
-    }).length;
+  $("statLowStock").textContent = inventory.filter((item) => {
+    return Number(item.quantity) <= 2;
+  }).length;
 
-    $("dashInventory").innerHTML =
-        inventory
-            .slice(-6)
-            .reverse()
-            .map((item) => `
-                <div class="mini-item">
-                    <div class="meta">${esc(item.source || "inventario")}</div>
-                    <strong>${esc(item.name)}</strong>
-                    <br>
-                    cantidad: ${esc(item.quantity)}
-                </div>
-            `)
-            .join("") ||
-        `<div class="mini-item">Inventario vacío</div>`;
+  $("dashInventory").innerHTML =
+    inventory
+      .slice(-6)
+      .reverse()
+      .map((item) => `
+        <div class="mini-item">
+          <div class="meta">${esc(item.source || "inventario")}</div>
+          <strong>${esc(item.name)}</strong>
+          <br>
+          cantidad: ${esc(item.quantity)}
+        </div>
+      `)
+      .join("") ||
+    `<div class="mini-item">Inventario vacío</div>`;
 }
 
 async function loadInventory(render = true) {
-    const data = await fetchJSON(`${API}/inventory/db`);
-    inventory = data.inventory || [];
+  const data = await fetchJSON(`${API}/inventory/db`);
+  inventory = data.inventory || [];
 
-    if (render) {
-        renderInventory();
-    }
+  if (render) {
+    renderInventory();
+  }
 }
 
 function renderInventory() {
-    const query = $("inventorySearch").value.toLowerCase().trim();
+  const query = $("inventorySearch").value.toLowerCase().trim();
 
-    const filtered = inventory.filter((item) => {
-        return item.name.toLowerCase().includes(query);
-    });
+  const filtered = inventory.filter((item) => {
+    return item.name.toLowerCase().includes(query);
+  });
 
-    if (!filtered.length) {
-        $("inventoryTable").innerHTML = `
-            <tr>
-                <td colspan="6">No hay productos para mostrar.</td>
-            </tr>
-        `;
-        return;
-    }
+  if (!filtered.length) {
+    $("inventoryTable").innerHTML = `
+      <tr>
+        <td colspan="6">No hay productos para mostrar.</td>
+      </tr>
+    `;
+    return;
+  }
 
-    $("inventoryTable").innerHTML = filtered.map((item) => {
-        const qty = Number(item.quantity);
+  $("inventoryTable").innerHTML = filtered.map((item) => {
+    const qty = Number(item.quantity);
 
-        const badge =
-            qty <= 0
-                ? `<span class="badge zero">Agotado</span>`
-                : qty <= 2
-                    ? `<span class="badge low">Bajo</span>`
-                    : `<span class="badge ok">OK</span>`;
+    const badge =
+      qty <= 0
+        ? `<span class="badge zero">Agotado</span>`
+        : qty <= 2
+          ? `<span class="badge low">Bajo</span>`
+          : `<span class="badge ok">OK</span>`;
 
-        return `
-            <tr>
-                <td><strong>${esc(item.name)}</strong></td>
-                <td>${esc(item.quantity)}</td>
-                <td>${esc(item.source || "—")}</td>
-                <td>${esc(item.last_update || "—")}</td>
-                <td>${badge}</td>
-                <td>
-                    <button
-                        class="btn danger"
-                        onclick="removeProduct('${esc(item.name)}')"
-                    >
-                        Quitar
-                    </button>
-                </td>
-            </tr>
-        `;
-    }).join("");
+    return `
+      <tr>
+        <td><strong>${esc(item.name)}</strong></td>
+        <td>${esc(item.quantity)}</td>
+        <td>${esc(item.source || "—")}</td>
+        <td>${esc(item.last_update || "—")}</td>
+        <td>${badge}</td>
+        <td>
+          <button
+            class="btn danger"
+            onclick="removeProduct('${esc(item.name)}')"
+          >
+            Quitar
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join("");
 }
 
 async function addProduct(event) {
-    event.preventDefault();
+  event.preventDefault();
 
-    const nombre = $("productName").value.trim();
-    const cantidad = Number($("productQuantity").value);
-    const fuente = $("productSource").value;
+  const nombre = $("productName").value.trim();
+  const cantidad = Number($("productQuantity").value);
+  const fuente = $("productSource").value;
 
-    if (!nombre || cantidad <= 0) {
-        return;
-    }
+  if (!nombre || cantidad <= 0) {
+    return;
+  }
 
-    await fetchJSON(`${API}/inventory/add`, {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({
-            nombre,
-            cantidad,
-            fuente
-        })
-    });
+  await fetchJSON(`${API}/inventory/add`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      nombre,
+      cantidad,
+      fuente
+    })
+  });
 
-    $("productName").value = "";
-    $("productQuantity").value = "1";
+  $("productName").value = "";
+  $("productQuantity").value = "1";
 
-    await loadInventory();
-    await loadDashboard();
+  await loadInventory();
+  await loadDashboard();
 }
 
 async function removeProduct(nombre) {
-    const cantidad = Number(
-        prompt(`¿Cuántas unidades quieres quitar de "${nombre}"?`, "1")
-    );
+  const cantidad = Number(
+    prompt(`¿Cuántas unidades quieres quitar de "${nombre}"?`, "1")
+  );
 
-    if (!cantidad || cantidad <= 0) {
-        return;
-    }
+  if (!cantidad || cantidad <= 0) {
+    return;
+  }
 
-    await fetchJSON(`${API}/inventory/remove`, {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({
-            nombre,
-            cantidad,
-            fuente: "frontend"
-        })
-    });
+  await fetchJSON(`${API}/inventory/remove`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      nombre,
+      cantidad,
+      fuente: "frontend"
+    })
+  });
 
-    await loadInventory();
-    await loadDashboard();
+  await loadInventory();
+  await loadDashboard();
 }
 
 function addBubble(containerId, role, text, type = "bot") {
-    const div = document.createElement("div");
+  const div = document.createElement("div");
 
-    div.className = `bubble ${type}`;
-    div.innerHTML = `
-        <strong>${esc(role)}</strong>
-        <br>
-        ${esc(text)}
-    `;
+  div.className = `bubble ${type}`;
+  div.innerHTML = `
+    <strong>${esc(role)}</strong>
+    <br>
+    ${esc(text)}
+  `;
 
-    $(containerId).appendChild(div);
-    $(containerId).scrollTop = $(containerId).scrollHeight;
+  $(containerId).appendChild(div);
+  $(containerId).scrollTop = $(containerId).scrollHeight;
 }
 
 async function sendMainChat(event) {
-    event.preventDefault();
+  event.preventDefault();
 
-    const mensaje = $("chatInput").value.trim();
-    const numero = $("chatNumber").value.trim() || "demo_frontend";
+  const mensaje = $("chatInput").value.trim();
+  const numero = $("chatNumber").value.trim() || "demo_frontend";
 
-    if (!mensaje) {
-        return;
-    }
+  if (!mensaje) {
+    return;
+  }
 
-    addBubble("chatWindow", "Tú", mensaje, "user");
-    $("chatInput").value = "";
+  addBubble("chatWindow", "Tú", mensaje, "user");
+  $("chatInput").value = "";
 
-    try {
-        const data = await fetchJSON(`${API}/chat`, {
-            method: "POST",
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify({
-                numero,
-                mensaje
-            })
-        });
+  try {
+    const data = await fetchJSON(`${API}/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        numero,
+        mensaje
+      })
+    });
 
-        addBubble("chatWindow", "Bot", data.respuesta, "bot");
+    addBubble("chatWindow", "Bot", data.respuesta, "bot");
 
-        await loadInventory(false);
-        await loadDashboard();
-    } catch (error) {
-        addBubble("chatWindow", "Error", error.message, "error");
-    }
+    await loadInventory(false);
+    await loadDashboard();
+  } catch (error) {
+    addBubble("chatWindow", "Error", error.message, "error");
+  }
 }
 
 async function loadHistory(render = true) {
-    const data = await fetchJSON(`${API}/chat/historial`);
-    const mensajes = data.mensajes || [];
+  const data = await fetchJSON(`${API}/chat/historial`);
+  const mensajes = data.mensajes || [];
 
-    $("statMessages").textContent = mensajes.length;
+  $("statMessages").textContent = mensajes.length;
 
-    $("dashHistory").innerHTML =
-        mensajes
-            .slice(-5)
-            .reverse()
-            .map((item) => `
-                <div class="mini-item">
-                    <div class="meta">${esc(item.numero)}</div>
-                    <strong>Usuario:</strong> ${esc(item.mensaje)}
-                </div>
-            `)
-            .join("") ||
-        `<div class="mini-item">Sin mensajes todavía</div>`;
+  $("dashHistory").innerHTML =
+    mensajes
+      .slice(-5)
+      .reverse()
+      .map((item) => `
+        <div class="mini-item">
+          <div class="meta">${esc(item.numero)}</div>
+          <strong>Usuario:</strong> ${esc(item.mensaje)}
+        </div>
+      `)
+      .join("") ||
+    `<div class="mini-item">Sin mensajes todavía</div>`;
 
-    if (!render) {
-        return;
-    }
+  if (!render) {
+    return;
+  }
 
-    $("historyList").innerHTML =
-        mensajes
-            .slice()
-            .reverse()
-            .map((item) => `
-                <div class="history-item">
-                    <div class="meta">${esc(item.numero)}</div>
-                    <p><strong>Usuario:</strong><br>${esc(item.mensaje)}</p>
-                    <p><strong>Bot:</strong><br>${esc(item.respuesta)}</p>
-                </div>
-            `)
-            .join("") ||
-        `<div class="history-item">No hay historial todavía.</div>`;
+  $("historyList").innerHTML =
+    mensajes
+      .slice()
+      .reverse()
+      .map((item) => `
+        <div class="history-item">
+          <div class="meta">${esc(item.numero)}</div>
+          <p><strong>Usuario:</strong><br>${esc(item.mensaje)}</p>
+          <p><strong>Bot:</strong><br>${esc(item.respuesta)}</p>
+        </div>
+      `)
+      .join("") ||
+    `<div class="history-item">No hay historial todavía.</div>`;
 }
 
 async function loadProfiles() {
-    profiles = await fetchJSON(`${API}/profiles`);
+  profiles = await fetchJSON(`${API}/profiles`);
 
-    $("copilotProfile").innerHTML =
-        Object
-            .entries(profiles)
-            .map(([id, profile]) => `
-                <option value="${esc(id)}">
-                    ${esc(profile.label)}
-                </option>
-            `)
-            .join("");
+  $("copilotProfile").innerHTML =
+    Object
+      .entries(profiles)
+      .map(([id, profile]) => `
+        <option value="${esc(id)}">
+          ${esc(profile.label)}
+        </option>
+      `)
+      .join("");
 
-    applyProfile();
+  applyProfile();
 }
 
 function applyProfile() {
-    const id = $("copilotProfile").value;
-    $("systemPrompt").value = profiles[id]?.system_prompt || "";
+  const id = $("copilotProfile").value;
+  $("systemPrompt").value = profiles[id]?.system_prompt || "";
 }
 
 async function sendCopilot(event) {
-    event.preventDefault();
+  event.preventDefault();
 
-    const message = $("copilotInput").value.trim();
+  const message = $("copilotInput").value.trim();
 
-    if (!message) {
-        return;
-    }
+  if (!message) {
+    return;
+  }
 
-    addBubble("copilotWindow", "Tú", message, "user");
-    $("copilotInput").value = "";
+  addBubble("copilotWindow", "Tú", message, "user");
+  $("copilotInput").value = "";
 
-    const payload = {
-        message,
-        model: $("copilotModel").value,
-        copilot_profile: $("copilotProfile").value,
-        system_prompt: $("systemPrompt").value,
-        temperature: Number($("temperature").value),
-        top_p: Number($("topP").value),
-        num_predict: Number($("numPredict").value),
-        num_ctx: 4096,
-        repeat_penalty: Number($("repeatPenalty").value)
-    };
+  const payload = {
+    message,
+    model: $("copilotModel").value,
+    copilot_profile: $("copilotProfile").value,
+    system_prompt: $("systemPrompt").value,
+    temperature: Number($("temperature").value),
+    top_p: Number($("topP").value),
+    num_predict: Number($("numPredict").value),
+    num_ctx: 4096,
+    repeat_penalty: Number($("repeatPenalty").value)
+  };
 
-    try {
-        const data = await fetchJSON(`${API}/chat/admin`, {
-            method: "POST",
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify(payload)
-        });
+  try {
+    const data = await fetchJSON(`${API}/chat/admin`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
 
-        addBubble(
-            "copilotWindow",
-            `Copiloto — ${data.copilot_label}`,
-            data.reply,
-            "bot"
-        );
+    addBubble(
+      "copilotWindow",
+      `Copiloto — ${data.copilot_label}`,
+      data.reply,
+      "bot"
+    );
 
-        renderMetrics(data.metrics);
-    } catch (error) {
-        addBubble("copilotWindow", "Error", error.message, "error");
-    }
+    renderMetrics(data.metrics);
+  } catch (error) {
+    addBubble("copilotWindow", "Error", error.message, "error");
+  }
 }
 
 function renderMetrics(metrics) {
-    $("metricsPanel").classList.remove("hidden");
+  $("metricsPanel").classList.remove("hidden");
 
-    $("metricsPanel").innerHTML = `
-        <div class="metric">
-            <span>Tiempo</span>
-            <strong>${metrics.wall_time_s}s</strong>
-        </div>
-        <div class="metric">
-            <span>Tokens/s</span>
-            <strong>${metrics.tokens_per_second}</strong>
-        </div>
-        <div class="metric">
-            <span>Entrada</span>
-            <strong>${metrics.prompt_eval_count}</strong>
-        </div>
-        <div class="metric">
-            <span>Salida</span>
-            <strong>${metrics.eval_count}</strong>
-        </div>
-    `;
+  $("metricsPanel").innerHTML = `
+    <div class="metric">
+      <span>Tiempo</span>
+      <strong>${metrics.wall_time_s}s</strong>
+    </div>
+    <div class="metric">
+      <span>Tokens/s</span>
+      <strong>${metrics.tokens_per_second}</strong>
+    </div>
+    <div class="metric">
+      <span>Entrada</span>
+      <strong>${metrics.prompt_eval_count}</strong>
+    </div>
+    <div class="metric">
+      <span>Salida</span>
+      <strong>${metrics.eval_count}</strong>
+    </div>
+  `;
 }
 
 function bindEvents() {
-    document.querySelectorAll(".nav-item").forEach((btn) => {
-        btn.addEventListener("click", () => {
-            showSection(btn.dataset.section);
-        });
+  document.querySelectorAll(".nav-item").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      showSection(btn.dataset.section);
     });
+  });
 
-    document.querySelectorAll(".preset").forEach((btn) => {
-        btn.addEventListener("click", () => {
-            $("chatInput").value = btn.dataset.msg;
-        });
+  $("reloadMetricsBtn").addEventListener("click", loadInventoryMetrics);
+
+  if ($("reloadEvaluationBtn")) {
+    $("reloadEvaluationBtn").addEventListener("click", loadEvaluation);
+  }
+
+  if ($("runInventoryTestsBtn")) {
+    $("runInventoryTestsBtn").addEventListener("click", runInventoryTests);
+  }
+
+  document.querySelectorAll(".preset").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      $("chatInput").value = btn.dataset.msg;
     });
+  });
 
-    $("refreshBtn").addEventListener("click", refreshAll);
-    $("reloadInventoryBtn").addEventListener("click", loadInventory);
-    $("reloadHistoryBtn").addEventListener("click", loadHistory);
-    $("inventorySearch").addEventListener("input", renderInventory);
-    $("addInventoryForm").addEventListener("submit", addProduct);
-    $("chatForm").addEventListener("submit", sendMainChat);
-    $("copilotForm").addEventListener("submit", sendCopilot);
-    $("copilotProfile").addEventListener("change", applyProfile);
+  $("refreshBtn").addEventListener("click", refreshAll);
+  $("reloadInventoryBtn").addEventListener("click", loadInventory);
+  $("reloadHistoryBtn").addEventListener("click", loadHistory);
+  $("inventorySearch").addEventListener("input", renderInventory);
+  $("addInventoryForm").addEventListener("submit", addProduct);
+  $("chatForm").addEventListener("submit", sendMainChat);
+  $("copilotForm").addEventListener("submit", sendCopilot);
+  $("copilotProfile").addEventListener("change", applyProfile);
 }
 
 async function refreshAll() {
-    await checkStatus();
-    await loadDashboard();
+  await checkStatus();
+  await loadDashboard();
 
-    if (activeSection === "inventory") {
-        await loadInventory();
-    }
+  if (activeSection === "inventory") {
+    await loadInventory();
+  }
 
-    if (activeSection === "history") {
-        await loadHistory();
-    }
+  if (activeSection === "history") {
+    await loadHistory();
+  }
+
+  if (activeSection === "metrics") {
+    await loadInventoryMetrics();
+  }
+
+  if (activeSection === "evaluation") {
+    await loadEvaluation();
+  }
 }
 
 async function init() {
-    bindEvents();
+  bindEvents();
 
-    await checkStatus();
-    await loadProfiles();
-    await loadDashboard();
+  await checkStatus();
+  await loadProfiles();
+  await loadDashboard();
 
-    addBubble(
-        "chatWindow",
-        "Bot",
-        "Hola. Puedes probar comandos como: dame el inventario, agrega productos, elimina productos, dame una receta o hazme un plan semanal.",
-        "bot"
-    );
+  addBubble(
+    "chatWindow",
+    "Bot",
+    "Hola. Puedes probar comandos como: dame el inventario, agrega productos, elimina productos, dame una receta o hazme un plan semanal.",
+    "bot"
+  );
 
-    setInterval(checkStatus, 10000);
+  setInterval(checkStatus, 10000);
+}
+
+async function loadInventoryMetrics() {
+  const summaryData = await fetchJSON(`${API}/metrics/inventory-summary`);
+  const historyData = await fetchJSON(`${API}/metrics/real-chat-analysis`);
+
+  const summary = summaryData.summary || {};
+  const history = historyData.history || [];
+
+  $("metricInventoryTotal").textContent =
+    summary.total_inventory_queries ?? 0;
+
+  $("metricInventoryAvg").textContent =
+    summary.avg_inventory_latency
+      ? Number(summary.avg_inventory_latency).toFixed(4)
+      : "0";
+
+  $("metricInventoryMin").textContent =
+    summary.min_inventory_latency
+      ? Number(summary.min_inventory_latency).toFixed(4)
+      : "0";
+
+  $("metricInventoryMax").textContent =
+    summary.max_inventory_latency
+      ? Number(summary.max_inventory_latency).toFixed(4)
+      : "0";
+
+  $("inventoryMetricsTable").innerHTML =
+    history.map((item) => {
+      const hasResponse =
+        item.respuesta && item.respuesta.trim().length > 0;
+
+      const isSlow =
+        Number(item.latency_seconds || 0) > 1;
+
+      const isGeneral =
+        item.intent === "general";
+
+      const isSuccess =
+        Number(item.success) === 1;
+
+      const shouldReview =
+        !isSuccess || !hasResponse || isSlow || isGeneral;
+
+      const resultText = shouldReview ? "Revisar" : "OK";
+      const resultClass = shouldReview ? "badge zero" : "badge ok";
+
+      return `
+        <tr>
+          <td>${esc(item.created_at || "—")}</td>
+          <td>${esc(item.numero || "—")}</td>
+          <td>${esc(item.mensaje || "—")}</td>
+          <td>${esc(item.intent || "—")}</td>
+          <td>${Number(item.latency_seconds || 0).toFixed(4)} s</td>
+          <td>${esc(shortText(item.respuesta || "", 180))}</td>
+          <td>${esc(item.error || "—")}</td>
+          <td>
+            <span class="${resultClass}">
+              ${resultText}
+            </span>
+          </td>
+        </tr>
+      `;
+    }).join("") ||
+    `<tr><td colspan="8">No hay métricas reales todavía.</td></tr>`;
+}
+
+async function loadEvaluation() {
+  const data = await fetchJSON(`${API}/metrics/intent-tests`);
+
+  const summary = data.summary || {};
+  const tests = data.tests || [];
+
+  const total = summary.total_tests || 0;
+  const accuracy = summary.accuracy || 0;
+  const responseRate = summary.response_rate || 0;
+  const avgLatency = summary.avg_latency || 0;
+
+  $("evalTotalTests").textContent = total;
+  $("evalAccuracy").textContent = `${(accuracy * 100).toFixed(1)}%`;
+  $("evalResponseRate").textContent = `${(responseRate * 100).toFixed(1)}%`;
+  $("evalAvgLatency").textContent = `${Number(avgLatency).toFixed(4)} s`;
+
+  $("evaluationTable").innerHTML =
+    tests.map((item) => {
+      const isCorrect = Number(item.is_correct) === 1;
+      const hasResponse = Number(item.has_response) === 1;
+
+      const resultText = isCorrect && hasResponse
+        ? "Correcto"
+        : "Revisar";
+
+      const resultClass = isCorrect && hasResponse
+        ? "badge ok"
+        : "badge zero";
+
+      return `
+        <tr>
+          <td>${esc(item.message || "—")}</td>
+          <td>${esc(item.expected_intent || "—")}</td>
+          <td>${esc(item.detected_intent || "—")}</td>
+          <td>${Number(item.latency_seconds || 0).toFixed(4)} s</td>
+          <td>${esc(shortText(item.response || "", 140))}</td>
+          <td><span class="${resultClass}">${resultText}</span></td>
+        </tr>
+      `;
+    }).join("") ||
+    `
+      <tr>
+        <td colspan="6">Todavía no hay pruebas registradas.</td>
+      </tr>
+    `;
+}
+
+async function runInventoryTests() {
+  await fetchJSON(`${API}/metrics/run-inventory-tests`, {
+    method: "POST"
+  });
+
+  await loadEvaluation();
+}
+
+function shortText(text, maxLength = 120) {
+  const clean = String(text || "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (clean.length <= maxLength) {
+    return clean;
+  }
+
+  return clean.slice(0, maxLength) + "...";
 }
 
 init();

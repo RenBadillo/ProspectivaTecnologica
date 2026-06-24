@@ -32,6 +32,12 @@
       <button class="nav-item" data-section="copilots">
         <span>🤖</span> Copilotos
       </button>
+      <button class="nav-item" data-section="metrics">
+        <span>📈</span> Métricas
+      </button>
+      <button class="nav-item" data-section="evaluation">
+        <span>🧪</span> Evaluación
+      </button>
     </nav>
 
     <div class="sidebar-status">
@@ -245,6 +251,127 @@
         </article>
       </div>
     </section>
+    <section id="metrics" class="section">
+      <div class="stats-grid">
+        <article class="stat-card">
+          <span>Consultas inventario</span>
+          <strong id="metricInventoryTotal">—</strong>
+          <small>total</small>
+        </article>
+
+        <article class="stat-card">
+          <span>Latencia promedio</span>
+          <strong id="metricInventoryAvg">—</strong>
+          <small>segundos</small>
+        </article>
+
+        <article class="stat-card">
+          <span>Latencia mínima</span>
+          <strong id="metricInventoryMin">—</strong>
+          <small>segundos</small>
+        </article>
+
+        <article class="stat-card">
+          <span>Latencia máxima</span>
+          <strong id="metricInventoryMax">—</strong>
+          <small>segundos</small>
+        </article>
+      </div>
+
+      <article class="card">
+        <div class="card-head">
+          <div>
+            <h3>Historial de consultas de inventario</h3>
+            <p class="muted">Mide tiempo, intención, respuesta y estado del flujo de inventario.</p>
+          </div>
+          <button id="reloadMetricsBtn" class="btn ghost">Recargar</button>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Número</th>
+                <th>Mensaje real</th>
+                <th>Intent</th>
+                <th>Tiempo</th>
+                <th>Respuesta</th>
+                <th>Error</th>
+                <th>Resultado</th>
+              </tr>
+            </thead>
+            <tbody id="inventoryMetricsTable"></tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+
+    <section id="evaluation" class="section">
+      <div class="stats-grid">
+        <article class="stat-card">
+          <span>Total pruebas</span>
+          <strong id="evalTotalTests">0</strong>
+          <small>casos ejecutados</small>
+        </article>
+
+        <article class="stat-card">
+          <span>Precisión</span>
+          <strong id="evalAccuracy">0%</strong>
+          <small>intent correcto</small>
+        </article>
+
+        <article class="stat-card">
+          <span>Tasa respuesta</span>
+          <strong id="evalResponseRate">0%</strong>
+          <small>respuesta no vacía</small>
+        </article>
+
+        <article class="stat-card">
+          <span>Latencia promedio</span>
+          <strong id="evalAvgLatency">0 s</strong>
+          <small>segundos</small>
+        </article>
+      </div>
+
+      <article class="card">
+        <div class="card-head stack-mobile">
+          <div>
+            <h3>Evaluación del flujo de inventario</h3>
+            <p class="muted">
+              Evalúa si el sistema interpreta frases naturales como consultas de inventario.
+            </p>
+          </div>
+
+          <div class="actions">
+            <button id="runInventoryTestsBtn" class="btn primary">
+              Correr pruebas
+            </button>
+
+            <button id="reloadEvaluationBtn" class="btn ghost">
+              Recargar
+            </button>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Mensaje</th>
+                <th>Esperado</th>
+                <th>Detectado</th>
+                <th>Tiempo</th>
+                <th>Respuesta</th>
+                <th>Resultado</th>
+              </tr>
+            </thead>
+            <tbody id="evaluationTable"></tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+
   </main>
 
   <script src="app.js"></script>
