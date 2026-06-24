@@ -231,3 +231,18 @@ async def get_real_chat_analysis():
             limit=100
         )
     }
+
+@router.get("/metrics/evaluation-dashboard")
+async def get_evaluation_dashboard():
+
+    quality = metrics_repository.get_quality_metrics()
+    structured_output = metrics_repository.get_structured_output_metrics()
+    architecture = metrics_repository.get_architecture_metrics()
+    operation = metrics_repository.get_operation_metrics()
+
+    return {
+        "quality": quality,
+        "structured_output": structured_output,
+        "architecture": architecture,
+        "operation": operation
+    }

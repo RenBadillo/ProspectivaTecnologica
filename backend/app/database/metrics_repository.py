@@ -325,3 +325,201 @@ class MetricsRepository:
         conn.close()
 
         return summary
+
+    def get_quality_metrics(self):
+
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """
+            SELECT
+                expected_intent,
+                detected_intent,
+                is_correct,
+                has_response
+            FROM intent_tests
+            """
+        )
+
+        rows = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+
+        total = len(rows)
+
+        if total == 0:
+            return {
+                "total_tests": 0,
+                "accuracy": 0,
+                "precision": 0,
+                "recall": 0,
+                "f1_score": 0,
+                "confusion_matrix": {}
+            }
+
+        correct = sum(1 for row in rows if row["is_correct"] == 1)
+
+        labels = sorted(
+            list(set(
+                [row["expected_intent"] for row in rows]
+                + [row["detected_intent"] for row in rows]
+            ))
+        )
+
+        confusion_matrix = {}
+
+        for label in labels:
+            confusion_matrix[label] = {}
+
+            for detected in labels:
+                confusion_matrix[label][detected] = 0
+
+        for row in rows:
+            expected = row["expected_intent"]
+            detected = row["detected_intent"]
+
+            confusion_matrix[expected][detected] += 1
+
+        # Métricas tipo micro-promedio
+        true_positive = correct
+        false_positive = total - correct
+        false_negative = total - correct
+
+        precision = (
+            true_positive / (true_positive + false_positive)
+            if (true_positive + false_positive) > 0
+            else 0
+        )
+
+        recall = (
+            true_positive / (true_positive + false_negative)
+            if (true_positive + false_negative) > 0
+            else 0
+        )
+
+        f1_score = (
+            2 * precision * recall / (precision + recall)
+            if (precision + recall) > 0
+            else 0
+        )
+
+        return {
+            "total_tests": total,
+            "accuracy": correct / total,
+            "precision": precision,
+            "recall": recall,
+            "f1_score": f1_score,
+            "confusion_matrix": confusion_matrix
+        }
+
+    def get_structured_output_metrics(self):
+
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """
+            SELECT
+                COUNT(*) AS total_messages,
+                AVG(
+                    CASE
+                        WHEN numero IS NOT NULL
+                        AND mensaje IS NOT NULL
+                        AND respuesta IS NOT NULL
+                        AND intent IS NOT NULL
+                        AND latency_seconds IS NOT NULL
+                        THEN 1.0
+                        ELSE 0.0
+                    END
+                ) AS json_validity_rate,
+                AVG(
+                    CASE
+                        WHEN TRIM(respuesta) != ''
+                        THEN 1.0
+                        ELSE 0.0
+                    END
+                ) AS schema_valid_rate
+            FROM chat_history
+            """
+        )
+
+        summary = dict(cursor.fetchone())
+        conn.close()
+
+        return {
+            "total_messages": summary["total_messages"] or 0,
+            "json_validity_rate": summary["json_validity_rate"] or 0,
+            "schema_valid_rate": summary["schema_valid_rate"] or 0
+        }
+
+    def get_architecture_metrics(self):
+
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """
+            SELECT
+                COUNT(*) AS total_requests,
+                AVG(success) AS architecture_success_rate
+            FROM chat_history
+            """
+        )
+
+        summary = dict(cursor.fetchone())
+        conn.close()
+
+        return {
+            "total_requests": summary["total_requests"] or 0,
+            "architecture_success_rate": summary["architecture_success_rate"] or 0
+        }
+
+    def get_operation_metrics(self):
+
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """
+            SELECT
+                COUNT(*) AS total_messages,
+                AVG(latency_seconds) AS avg_latency,
+                MIN(latency_seconds) AS min_latency,
+                MAX(latency_seconds) AS max_latency
+            FROM chat_history
+            """
+        )
+
+        chat = dict(cursor.fetchone())
+
+        cursor.execute(
+            """
+            SELECT
+                SUM(prompt_tokens) AS prompt_tokens,
+                SUM(completion_tokens) AS completion_tokens,
+                SUM(total_tokens) AS total_tokens,
+                AVG(tokens_per_second) AS avg_tokens_per_second,
+                AVG(latency_seconds) AS avg_llm_latency
+            FROM llm_metrics
+            """
+        )
+
+        llm = dict(cursor.fetchone())
+
+        conn.close()
+
+        return {
+            "chat": {
+                "total_messages": chat["total_messages"] or 0,
+                "avg_latency": chat["avg_latency"] or 0,
+                "min_latency": chat["min_latency"] or 0,
+                "max_latency": chat["max_latency"] or 0
+            },
+            "llm": {
+                "prompt_tokens": llm["prompt_tokens"] or 0,
+                "completion_tokens": llm["completion_tokens"] or 0,
+                "total_tokens": llm["total_tokens"] or 0,
+                "avg_tokens_per_second": llm["avg_tokens_per_second"] or 0,
+                "avg_llm_latency": llm["avg_llm_latency"] or 0
+            }
+        }

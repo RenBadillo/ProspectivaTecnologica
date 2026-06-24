@@ -5,6 +5,7 @@ const axios = require('axios');
 const BACKEND_URL = 'http://127.0.0.1:8000';
 
 let BOT_READY_AT = null;
+let BOT_READY_AT_SECONDS = null;
 const processedMessages = new Set();
 
 const client = new Client({
@@ -37,6 +38,10 @@ client.on('authenticated', () => {
 client.on('ready', () => {
     BOT_READY_AT = Date.now();
 
+    // Damos 10 segundos de tolerancia porque WhatsApp puede traer timestamps
+    // ligeramente anteriores al momento exacto en que el bot queda listo.
+    BOT_READY_AT_SECONDS = Math.floor(Date.now() / 1000) - 10;
+
     console.log('\nBot conectado a WhatsApp');
     console.log('Esperando mensajes privados nuevos...\n');
 });
@@ -52,7 +57,10 @@ client.on('disconnected', (reason) => {
 
 client.on('message', async (msg) => {
     try {
-        if (!BOT_READY_AT) return;
+        if (!BOT_READY_AT){
+            console.log('Mensaje ignorado porque el bot aún no está listo');
+            return;
+        } 
 
         if (msg.fromMe) return;
 
@@ -75,8 +83,10 @@ client.on('message', async (msg) => {
 
         const messageTimeMs = msg.timestamp * 1000;
 
-        if (messageTimeMs < BOT_READY_AT) {
+        if (msg.timestamp < BOT_READY_AT_SECONDS) {
             console.log('\nMensaje viejo ignorado');
+            console.log('timestamp mensaje:', msg.timestamp);
+            console.log('timestamp bot:', BOT_READY_AT_SECONDS);
             console.log('from:', msg.from);
             console.log('mensaje:', msg.body);
             return;
