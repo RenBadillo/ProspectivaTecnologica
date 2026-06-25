@@ -38,7 +38,6 @@ class MetricsRepository:
         error: str = None,
         orchestrator: dict = None
     ):
-
         self.ensure_orchestrator_columns()
 
         orchestrator = orchestrator or {}
@@ -95,7 +94,6 @@ class MetricsRepository:
         latency_seconds: float,
         tokens_per_second: float
     ):
-
         conn = get_connection()
         cursor = conn.cursor()
 
@@ -134,7 +132,6 @@ class MetricsRepository:
         response: str,
         latency_seconds: float
     ):
-
         expected_clean = (expected_intent or "").strip().lower()
         detected_clean = (detected_intent or "").strip().lower()
         response_clean = (response or "").strip()
@@ -173,7 +170,6 @@ class MetricsRepository:
         conn.close()
 
     def get_chat_history(self, limit: int = 100):
-
         self.ensure_orchestrator_columns()
 
         conn = get_connection()
@@ -195,7 +191,6 @@ class MetricsRepository:
         return [dict(row) for row in rows]
 
     def get_llm_metrics(self, limit: int = 100):
-
         conn = get_connection()
         cursor = conn.cursor()
 
@@ -215,7 +210,6 @@ class MetricsRepository:
         return [dict(row) for row in rows]
 
     def get_intent_tests(self, limit: int = 100):
-
         conn = get_connection()
         cursor = conn.cursor()
 
@@ -235,7 +229,6 @@ class MetricsRepository:
         return [dict(row) for row in rows]
 
     def get_summary(self):
-
         conn = get_connection()
         cursor = conn.cursor()
 
@@ -273,7 +266,6 @@ class MetricsRepository:
         }
 
     def get_inventory_chat_history(self, limit: int = 100):
-
         self.ensure_orchestrator_columns()
 
         conn = get_connection()
@@ -296,7 +288,6 @@ class MetricsRepository:
         return [dict(row) for row in rows]
 
     def get_intent_test_summary(self):
-
         conn = get_connection()
         cursor = conn.cursor()
 
@@ -318,7 +309,6 @@ class MetricsRepository:
         return summary
 
     def get_real_chat_analysis(self, limit: int = 100):
-
         self.ensure_orchestrator_columns()
 
         conn = get_connection()
@@ -340,7 +330,6 @@ class MetricsRepository:
         return [dict(row) for row in rows]
 
     def get_inventory_summary(self):
-
         conn = get_connection()
         cursor = conn.cursor()
 
@@ -377,7 +366,6 @@ class MetricsRepository:
         return summary
 
     def get_quality_metrics(self):
-
         conn = get_connection()
         cursor = conn.cursor()
 
@@ -427,7 +415,6 @@ class MetricsRepository:
         for row in rows:
             expected = row["expected_intent"]
             detected = row["detected_intent"]
-
             confusion_matrix[expected][detected] += 1
 
         true_positive = correct
@@ -462,7 +449,6 @@ class MetricsRepository:
         }
 
     def get_structured_output_metrics(self):
-
         self.ensure_orchestrator_columns()
 
         conn = get_connection()
@@ -471,7 +457,7 @@ class MetricsRepository:
         cursor.execute(
             """
             SELECT
-                COUNT(*) AS total_messages,
+                COUNT(*) AS total_orchestrator_messages,
                 AVG(
                     CASE
                         WHEN orchestrator_json_valid = 1
@@ -487,6 +473,8 @@ class MetricsRepository:
                     END
                 ) AS schema_valid_rate
             FROM chat_history
+            WHERE orchestrator_model IS NOT NULL
+            AND TRIM(orchestrator_model) != ''
             """
         )
 
@@ -494,13 +482,12 @@ class MetricsRepository:
         conn.close()
 
         return {
-            "total_messages": summary["total_messages"] or 0,
+            "total_messages": summary["total_orchestrator_messages"] or 0,
             "json_validity_rate": summary["json_validity_rate"] or 0,
             "schema_valid_rate": summary["schema_valid_rate"] or 0
         }
 
     def get_architecture_metrics(self):
-
         conn = get_connection()
         cursor = conn.cursor()
 
@@ -522,7 +509,6 @@ class MetricsRepository:
         }
 
     def get_operation_metrics(self):
-
         self.ensure_orchestrator_columns()
 
         conn = get_connection()
@@ -558,9 +544,26 @@ class MetricsRepository:
         cursor.execute(
             """
             SELECT
+                COUNT(*) AS total_orchestrator_calls,
                 SUM(orchestrator_tokens) AS orchestrator_tokens,
-                AVG(orchestrator_confidence) AS avg_orchestrator_confidence
+                AVG(orchestrator_confidence) AS avg_orchestrator_confidence,
+                AVG(
+                    CASE
+                        WHEN orchestrator_json_valid = 1
+                        THEN 1.0
+                        ELSE 0.0
+                    END
+                ) AS orchestrator_json_valid_rate,
+                AVG(
+                    CASE
+                        WHEN orchestrator_schema_valid = 1
+                        THEN 1.0
+                        ELSE 0.0
+                    END
+                ) AS orchestrator_schema_valid_rate
             FROM chat_history
+            WHERE orchestrator_model IS NOT NULL
+            AND TRIM(orchestrator_model) != ''
             """
         )
 
@@ -583,7 +586,10 @@ class MetricsRepository:
                 "avg_llm_latency": llm["avg_llm_latency"] or 0
             },
             "orchestrator": {
+                "total_calls": orchestrator["total_orchestrator_calls"] or 0,
                 "total_tokens": orchestrator["orchestrator_tokens"] or 0,
-                "avg_confidence": orchestrator["avg_orchestrator_confidence"] or 0
+                "avg_confidence": orchestrator["avg_orchestrator_confidence"] or 0,
+                "json_valid_rate": orchestrator["orchestrator_json_valid_rate"] or 0,
+                "schema_valid_rate": orchestrator["orchestrator_schema_valid_rate"] or 0
             }
         }
