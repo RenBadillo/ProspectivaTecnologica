@@ -1,71 +1,107 @@
+import time
 import httpx
 
 from app.models.llm_response import LLMResponse
+from app.database.metrics_repository import MetricsRepository
 
 
 class LLMService:
-    """Cliente único para hablar con Ollama.
-
-    Ningún otro service debería usar httpx directamente para llamar al LLM.
-    """
 
     def __init__(
         self,
-        model: str = "llama3.2:3b",
-        url: str = "http://localhost:11434/api/generate"
+        model: str = "llama3.2:3b"
     ):
         self.model = model
-        self.url = url
+        self.url = "http://localhost:11434/api/generate"
+        self.metrics_repository = MetricsRepository()
 
     async def generate(
         self,
         prompt: str,
-        temperature: float = 0.3,
-        max_tokens: int = 350,
-        timeout: float = 180.0
+        temperature: float = 0.4,
+        max_tokens: int = 500,
+        format_json: bool = False
     ) -> LLMResponse:
+
+        start_time = time.perf_counter()
+
         try:
-            async with httpx.AsyncClient(timeout=timeout) as client:
+            payload = {
+                "model": self.model,
+                "prompt": prompt,
+                "stream": False,
+                "options": {
+                    "temperature": temperature,
+                    "num_predict": max_tokens
+                }
+            }
+
+            if format_json:
+                payload["format"] = "json"
+
+            async with httpx.AsyncClient(timeout=180.0) as client:
                 response = await client.post(
                     self.url,
-                    json={
-                        "model": self.model,
-                        "prompt": prompt,
-                        "stream": False,
-                        "options": {
-                            "temperature": temperature,
-                            "num_predict": max_tokens,
-                            "top_p": 0.9,
-                            "repeat_penalty": 1.1,
-                            "num_ctx": 2048,
-                        },
-                    },
+                    json=payload
                 )
+
                 response.raise_for_status()
                 data = response.json()
 
-                return LLMResponse(
-                    success=True,
-                    content=data.get("response", "").strip(),
-                    tokens_used=data.get("eval_count", 0),
-                    model=self.model,
+                content = data.get("response", "").strip()
+
+                latency_seconds = round(
+                    time.perf_counter() - start_time,
+                    4
                 )
 
-        except httpx.ConnectError:
+                prompt_tokens = int(
+                    data.get("prompt_eval_count", 0)
+                )
+
+                completion_tokens = int(
+                    data.get("eval_count", 0)
+                )
+
+                total_tokens = prompt_tokens + completion_tokens
+
+                tokens_per_second = 0
+
+                if latency_seconds > 0:
+                    tokens_per_second = round(
+                        completion_tokens / latency_seconds,
+                        4
+                    )
+
+                self.metrics_repository.save_llm_metric(
+                    model=self.model,
+                    provider="ollama",
+                    prompt_tokens=prompt_tokens,
+                    completion_tokens=completion_tokens,
+                    total_tokens=total_tokens,
+                    latency_seconds=latency_seconds,
+                    tokens_per_second=tokens_per_second
+                )
+
+                if not content:
+                    return LLMResponse(
+                        success=False,
+                        content="El modelo devolvió una respuesta vacía.",
+                        tokens_used=total_tokens,
+                        model=self.model
+                    )
+
+                return LLMResponse(
+                    success=True,
+                    content=content,
+                    tokens_used=total_tokens,
+                    model=self.model
+                )
+
+        except Exception as error:
             return LLMResponse(
                 success=False,
-                content="No se pudo conectar con Ollama. Verifica que 'ollama serve' esté corriendo.",
-                model=self.model,
-            )
-        except httpx.HTTPStatusError as exc:
-            return LLMResponse(
-                success=False,
-                content=f"Error HTTP al llamar a Ollama: {exc.response.status_code} {exc.response.text}",
-                model=self.model,
-            )
-        except Exception as exc:
-            return LLMResponse(
-                success=False,
-                content=f"Error inesperado al llamar al LLM: {exc}",
-                model=self.model,
+                content=str(error),
+                tokens_used=0,
+                model=self.model
             )

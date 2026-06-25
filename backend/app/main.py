@@ -7,6 +7,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from app.api.routes_inventory import router as inventory_router
 from app.api.routes_chat import router as chat_router
+from app.api.routes_metrics import router as metrics_router
+from app.api.routes_orchestrator import router as orchestrator_router
 from app.api.routes_vision import router as vision_router
 
 OLLAMA_CHAT_URL = "http://localhost:11434/api/chat"
@@ -76,6 +78,8 @@ app.add_middleware(
 
 app.include_router(inventory_router)
 app.include_router(chat_router)
+app.include_router(metrics_router)
+app.include_router(orchestrator_router)
 app.include_router(vision_router)
 
 

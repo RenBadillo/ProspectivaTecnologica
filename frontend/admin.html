@@ -32,6 +32,12 @@
       <button class="nav-item" data-section="copilots">
         <span>🤖</span> Copilotos
       </button>
+      <button class="nav-item" data-section="metrics">
+        <span>📈</span> Métricas
+      </button>
+      <button class="nav-item" data-section="evaluation">
+        <span>🧪</span> Evaluación
+      </button>
     </nav>
 
     <div class="sidebar-status">
@@ -244,6 +250,269 @@
           <div id="metricsPanel" class="metrics-panel hidden"></div>
         </article>
       </div>
+    </section>
+
+    <section id="metrics" class="section">
+      <div class="observability-hero">
+        <div>
+          <p class="eyebrow">Observabilidad</p>
+          <h2>Métricas v2 del sistema inteligente</h2>
+          <p>
+            Este panel muestra salud del sistema, desempeño del orquestador LLM,
+            recorrido de información, tokens, latencia, costos y calidad de decisión.
+          </p>
+        </div>
+        <div class="actions">
+          <button id="reloadHealthBtn" class="btn ghost">Recargar salud</button>
+          <button id="reloadMetricsBtn" class="btn primary">Recargar todo</button>
+        </div>
+      </div>
+
+      <article class="card">
+        <div class="card-head">
+          <div>
+            <h3>Salud del sistema</h3>
+            <p class="muted">Estado operativo de backend, API, Ollama, SQLite y métricas clave.</p>
+          </div>
+        </div>
+
+        <div class="health-grid">
+          <div class="health-card">
+            <span id="healthBackendDot" class="dot"></span>
+            <div>
+              <strong>Backend</strong>
+              <p id="healthBackendText">Verificando...</p>
+            </div>
+          </div>
+
+          <div class="health-card">
+            <span id="healthChatDot" class="dot"></span>
+            <div>
+              <strong>Chat API</strong>
+              <p id="healthChatText">Verificando...</p>
+            </div>
+          </div>
+
+          <div class="health-card">
+            <span id="healthOllamaDot" class="dot"></span>
+            <div>
+              <strong>Ollama</strong>
+              <p id="healthOllamaText">Verificando...</p>
+            </div>
+          </div>
+
+          <div class="health-card">
+            <span id="healthSQLiteDot" class="dot"></span>
+            <div>
+              <strong>SQLite</strong>
+              <p id="healthSQLiteText">Verificando...</p>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <div class="stats-grid">
+        <article class="stat-card">
+          <span>Consultas reales</span>
+          <strong id="metricInventoryTotal">—</strong>
+          <small>mensajes procesados</small>
+        </article>
+
+        <article class="stat-card">
+          <span>Latencia promedio</span>
+          <strong id="metricInventoryAvg">—</strong>
+          <small>segundos</small>
+        </article>
+
+        <article class="stat-card">
+          <span>Precisión intent</span>
+          <strong id="metricIntentPrecision">0%</strong>
+          <small>no clasificado como general</small>
+        </article>
+
+        <article class="stat-card">
+          <span>Tasa respuesta</span>
+          <strong id="metricResponseRate">0%</strong>
+          <small>respuesta no vacía</small>
+        </article>
+      </div>
+
+      <article class="card">
+        <div class="card-head">
+          <div>
+            <h3>Análisis del modelo y orquestador</h3>
+            <p class="muted">Resumen de tokens, confianza, JSON, schema, latencia y costo.</p>
+          </div>
+          <button id="reloadEvaluationMatrixBtn" class="btn ghost">Recargar análisis</button>
+        </div>
+
+        <div class="stats-grid">
+          <article class="stat-card">
+            <span>Modelo</span>
+            <strong id="modelName" class="model-text">—</strong>
+            <small>orquestador</small>
+          </article>
+
+          <article class="stat-card">
+            <span>Tokens totales</span>
+            <strong id="modelTokensTotal">0</strong>
+            <small>LLM</small>
+          </article>
+
+          <article class="stat-card">
+            <span>Confianza promedio</span>
+            <strong id="modelConfidenceAvg">0%</strong>
+            <small>orquestador</small>
+          </article>
+
+          <article class="stat-card">
+            <span>Tokens/s</span>
+            <strong id="modelTokensPerSecond">0</strong>
+            <small>promedio</small>
+          </article>
+        </div>
+
+        <div class="grid-2">
+          <div class="metric-box">
+            <h4>Distribución de intents</h4>
+            <div id="intentChart" class="bar-list"></div>
+          </div>
+
+          <div class="metric-box">
+            <h4>Últimas latencias</h4>
+            <div id="latencyChart" class="bar-list"></div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="metric-box">
+            <h4>Consumo de tokens</h4>
+            <div id="tokenChart" class="bar-list"></div>
+          </div>
+
+          <div class="metric-box">
+            <h4>Comparación de costo estimado</h4>
+            <div id="costChart" class="bar-list"></div>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Dimensión</th>
+                <th>Pregunta principal</th>
+                <th>Métricas asociadas</th>
+                <th>Resultado actual</th>
+              </tr>
+            </thead>
+            <tbody id="evaluationMatrixTable"></tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-head">
+          <div>
+            <h3>Historial real de ejecución</h3>
+            <p class="muted">
+              Consulta el recorrido completo de cada mensaje procesado por el sistema.
+            </p>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Mensaje</th>
+                <th>Intent final</th>
+                <th>Tiempo</th>
+                <th>Resultado</th>
+                <th>Detalle</th>
+              </tr>
+            </thead>
+            <tbody id="inventoryMetricsTable"></tbody>
+          </table>
+        </div>
+      </article>
+
+      <article id="executionDetailPanel" class="card hidden">
+        <div class="card-head">
+          <div>
+            <h3>Detalle de ejecución</h3>
+            <p class="muted">Recorrido: usuario → backend → orquestador → servicio → respuesta.</p>
+          </div>
+        </div>
+
+        <div id="executionDetailContent"></div>
+      </article>
+    </section>
+
+    <section id="evaluation" class="section">
+      <div class="stats-grid">
+        <article class="stat-card">
+          <span>Total pruebas</span>
+          <strong id="evalTotalTests">0</strong>
+          <small>casos ejecutados</small>
+        </article>
+
+        <article class="stat-card">
+          <span>Precisión</span>
+          <strong id="evalAccuracy">0%</strong>
+          <small>intent correcto</small>
+        </article>
+
+        <article class="stat-card">
+          <span>Tasa respuesta</span>
+          <strong id="evalResponseRate">0%</strong>
+          <small>respuesta no vacía</small>
+        </article>
+
+        <article class="stat-card">
+          <span>Latencia promedio</span>
+          <strong id="evalAvgLatency">0 s</strong>
+          <small>segundos</small>
+        </article>
+      </div>
+
+      <article class="card">
+        <div class="card-head stack-mobile">
+          <div>
+            <h3>Evaluación del flujo de inventario</h3>
+            <p class="muted">
+              Evalúa si el sistema interpreta frases naturales como consultas de inventario.
+            </p>
+          </div>
+
+          <div class="actions">
+            <button id="runInventoryTestsBtn" class="btn primary">
+              Correr pruebas
+            </button>
+
+            <button id="reloadEvaluationBtn" class="btn ghost">
+              Recargar
+            </button>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Mensaje</th>
+                <th>Esperado</th>
+                <th>Detectado</th>
+                <th>Tiempo</th>
+                <th>Respuesta</th>
+                <th>Resultado</th>
+              </tr>
+            </thead>
+            <tbody id="evaluationTable"></tbody>
+          </table>
+        </div>
+      </article>
     </section>
   </main>
 

@@ -71,8 +71,6 @@ Sexo: {user.sex}
 Peso: {user.weight}
 Altura: {user.height}
 Objetivo: {user.goal}
-Restricciones: {user.dietary_restrictions}
-Preferencias: {user.food_preferences}
 
 OBJETIVOS DIARIOS DEL USUARIO
 
@@ -84,10 +82,6 @@ Grasas diarias objetivo: {nutrition.fat_target}
 INVENTARIO DISPONIBLE
 
 {inventory_text}
-
-LISTA ESTRICTA DE INGREDIENTES PERMITIDOS
-
-{", ".join(available_ingredients)}
 
 CONTEXTO DEL AGENTE
 

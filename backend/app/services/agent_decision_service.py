@@ -80,7 +80,6 @@ class AgentDecisionService:
 
         urgent_items = inventory_state["urgent_items"]
         soon_items = inventory_state["soon_items"]
-        low_stock_items = inventory_state["low_stock_items"]
 
         messages = []
 
@@ -92,30 +91,18 @@ class AgentDecisionService:
             for item in urgent_items:
                 messages.append(
                     f"- {item['name']} lleva "
-                    f"{item['days_in_inventory']} días en inventario. "
-                    f"Como es {item['category']}, su vida útil sugerida "
-                    f"es de {item['threshold_days']} días."
+                    f"{item['days_in_inventory']} días en inventario."
                 )
 
         if soon_items:
             messages.append(
-                "También hay productos próximos a llegar a su límite sugerido:"
+                "También hay productos próximos a consumirse preferentemente:"
             )
 
             for item in soon_items:
                 messages.append(
                     f"- {item['name']} tiene aproximadamente "
-                    f"{item['days_left']} días restantes de vida útil sugerida."
-                )
-
-        if low_stock_items:
-            messages.append(
-                "Además, detecté productos con stock bajo:"
-            )
-
-            for item in low_stock_items:
-                messages.append(
-                    f"- {item['name']} tiene cantidad {item['quantity']}."
+                    f"{item['days_left']} días restantes."
                 )
 
         if not messages:
@@ -130,41 +117,44 @@ class AgentDecisionService:
 
         urgent_items = inventory_state["urgent_items"]
         soon_items = inventory_state["soon_items"]
-        available_items = inventory_state["available_items"]
 
-        priority_names = [
-            item["name"]
-            for item in urgent_items
-        ] + [
-            item["name"]
-            for item in soon_items
-        ]
+        total_priority = (
+            len(urgent_items)
+            + len(soon_items)
+        )
+        
+        if total_priority == 0:
+            return(
+                "No existen ingredientes prioritarios"
+                "por antigüedad"
+            )
 
-        all_items_text = "\n".join([
+        return (
+            f"Existen {total_priority} ingredientes "
+            "prioritarios por antigüedad"
+            "Priorízalos cuando sea razonable, "
+            "pero considera todo el Inventario."
+        )
+
+        if not priority_items:
+            return (
+                "No hay ingredientes prioritarios por antigüedad. "
+                "Genera la receta considerando el inventario disponible."
+            )
+
+        priority_text = "\n".join([
             (
                 f"- {item['name']} "
                 f"(cantidad: {item['quantity']}, "
-                f"categoría: {item['category']}, "
-                f"días en inventario: {item['days_in_inventory']}, "
-                f"vida útil sugerida: {item['threshold_days']})"
+                f"{item['days_in_inventory']} días en inventario, "
+                f"{item['category']})"
             )
-            for item in available_items
+            for item in priority_items
         ])
 
-        priority_text = (
-            "\n".join([f"- {name}" for name in priority_names])
-            if priority_names
-            else "No hay ingredientes urgentes."
-        )
-
         return (
-            "ESTADO COMPLETO DEL INVENTARIO:\n"
-            f"{all_items_text}\n\n"
-            "INGREDIENTES PRIORITARIOS PARA EVITAR DESPERDICIO:\n"
+            "INGREDIENTES PRIORITARIOS INTERNOS:\n"
             f"{priority_text}\n\n"
-            "INSTRUCCIÓN DE AGENTE:\n"
-            "Si el usuario pide receta o plan de comida, prioriza los "
-            "ingredientes urgentes o próximos a caducar, pero considera "
-            "todo el inventario disponible para crear una recomendación "
-            "más completa y útil."
+            "Usa estos ingredientes preferentemente si tiene sentido, "
+            "pero no menciones alertas de caducidad a menos que el usuario lo pida."
         )
