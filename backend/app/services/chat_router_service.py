@@ -35,7 +35,7 @@ class ChatRouterService:
 
         if any(p in text for p in [
             "cambia", "cambiar", "renombra", "renombrar",
-            "corrige", "corregir"
+            "corrige", "corregir", "quise decir"
         ]):
             return "rename_inventory"
 
@@ -51,14 +51,16 @@ class ChatRouterService:
         if any(p in text for p in [
             "agrega", "agregar", "puedes agregar",
             "añade", "añadir", "compré", "compre",
-            "sumar al inventario"
+            "agregué", "agregue", "sumar al inventario",
+            "tengo ahora"
         ]):
             return "add_inventory"
 
         if any(p in text for p in [
             "elimina", "eliminar", "quita", "quitar",
             "consumí", "consumi", "usé", "use",
-            "gasté", "gaste"
+            "gasté", "gaste", "me comí", "me comi",
+            "ya no tengo"
         ]):
             return "remove_inventory"
 
@@ -117,11 +119,7 @@ class ChatRouterService:
 
         return "general"
 
-    def normalize_intent(
-        self,
-        intent: str
-    ) -> str:
-
+    def normalize_intent(self, intent: str) -> str:
         if intent == "register_profile":
             return "profile_register"
 
@@ -161,17 +159,18 @@ class ChatRouterService:
                     "json_valid": True,
                     "schema_valid": True,
                     "tokens_used": 0,
-                    "model": "system"
+                    "model": "system",
+                    "entities": {}
                 }
             }
 
-        decision = await self.orchestrator_service.decide(
-            message
-        )
+        decision = await self.orchestrator_service.decide(message)
 
         intent = self.normalize_intent(
             decision.get("intent", "general")
         )
+
+        entities = decision.get("entities", {}) or {}
 
         fallback_intent = self.classify(message)
 
@@ -184,9 +183,7 @@ class ChatRouterService:
                 "pero el respaldo por reglas detectó una intención más específica."
             )
 
-        user = self.user_repository.get_by_whatsapp(
-            whatsapp_number
-        )
+        user = self.user_repository.get_by_whatsapp(whatsapp_number)
 
         if (
             not user
@@ -200,9 +197,7 @@ class ChatRouterService:
                 "general"
             ]
         ):
-            self.start_registration(
-                whatsapp_number
-            )
+            self.start_registration(whatsapp_number)
 
             return {
                 "respuesta": (
@@ -234,7 +229,8 @@ class ChatRouterService:
 
         elif intent == "rename_inventory":
             response = self.handle_rename_inventory(
-                message
+                message=message,
+                entities=entities
             )
 
         elif intent == "reminders":
@@ -242,12 +238,14 @@ class ChatRouterService:
 
         elif intent == "add_inventory":
             response = self.handle_add_inventory(
-                message
+                message=message,
+                entities=entities
             )
 
         elif intent == "remove_inventory":
             response = self.handle_remove_inventory(
-                message
+                message=message,
+                entities=entities
             )
 
         elif intent == "inventory":
@@ -259,9 +257,7 @@ class ChatRouterService:
         elif intent == "recipe":
             agent_context = (
                 self.agent_decision_service
-                .build_recipe_priority_context(
-                    inventory_state
-                )
+                .build_recipe_priority_context(inventory_state)
             )
 
             response = await self.recipe_service.generate_recipe(
@@ -273,14 +269,10 @@ class ChatRouterService:
             response = self.handle_shopping()
 
         elif intent == "nutrition":
-            response = self.handle_nutrition(
-                whatsapp_number
-            )
+            response = self.handle_nutrition(whatsapp_number)
 
         elif intent == "meal_plan":
-            response = self.handle_meal_plan(
-                whatsapp_number
-            )
+            response = self.handle_meal_plan(whatsapp_number)
 
         else:
             response = await self.handle_general(
@@ -294,11 +286,42 @@ class ChatRouterService:
             "orchestrator": decision
         }
 
-    def start_registration(
-        self,
-        whatsapp_number: str
-    ):
+    def get_items_from_entities(self, entities: dict) -> list:
+        if not entities:
+            return []
 
+        items = entities.get("items", [])
+
+        if not isinstance(items, list):
+            return []
+
+        clean_items = []
+
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+
+            name = str(item.get("name", "")).strip().lower()
+
+            try:
+                quantity = int(item.get("quantity", 1))
+            except Exception:
+                quantity = 1
+
+            if not name:
+                continue
+
+            if quantity <= 0:
+                quantity = 1
+
+            clean_items.append({
+                "name": name,
+                "quantity": quantity
+            })
+
+        return clean_items
+
+    def start_registration(self, whatsapp_number: str):
         self.registration_sessions[whatsapp_number] = {
             "step": "name",
             "data": {}
@@ -310,9 +333,7 @@ class ChatRouterService:
         message: str
     ) -> str:
 
-        session = self.registration_sessions[
-            whatsapp_number
-        ]
+        session = self.registration_sessions[whatsapp_number]
 
         step = session["step"]
         data = session["data"]
@@ -423,9 +444,7 @@ class ChatRouterService:
 
                 self.user_repository.create(user)
 
-                del self.registration_sessions[
-                    whatsapp_number
-                ]
+                del self.registration_sessions[whatsapp_number]
 
                 return (
                     "Perfil registrado correctamente.\n\n"
@@ -447,12 +466,7 @@ class ChatRouterService:
 
         return "Ocurrió un error durante el registro."
 
-    def add_agent_notice(
-        self,
-        response: str,
-        agent_message: str
-    ) -> str:
-
+    def add_agent_notice(self, response: str, agent_message: str) -> str:
         if not agent_message:
             return response
 
@@ -475,9 +489,18 @@ class ChatRouterService:
         lines = []
 
         for item in inventory:
+            if item["quantity"] <= 0:
+                continue
+
             lines.append(
                 f"- {item['name']} "
                 f"(cantidad: {item['quantity']})"
+            )
+
+        if not lines:
+            return (
+                "Tu inventario está vacío. "
+                "Agrega productos primero."
             )
 
         return (
@@ -486,10 +509,7 @@ class ChatRouterService:
         )
 
     def handle_reminders(self) -> str:
-        reminders = (
-            self.inventory_service
-            .get_consumption_reminders()
-        )
+        reminders = self.inventory_service.get_consumption_reminders()
 
         if not reminders:
             return (
@@ -513,46 +533,55 @@ class ChatRouterService:
 
     def handle_rename_inventory(
         self,
-        message: str
+        message: str,
+        entities: dict = None
     ) -> str:
 
-        text = message.lower().strip()
+        entities = entities or {}
 
-        patterns = [
-            ("cambia", "por"),
-            ("cambiar", "por"),
-            ("renombra", "como"),
-            ("renombrar", "como"),
-            ("corrige", "por"),
-            ("corregir", "por")
-        ]
+        old_name = entities.get("old_name")
+        new_name = entities.get("new_name")
 
-        old_name = None
-        new_name = None
+        if old_name:
+            old_name = str(old_name).strip().lower()
 
-        for start_word, separator in patterns:
-            if start_word in text and separator in text:
-                clean_text = (
-                    text.replace(start_word, "", 1)
-                    .replace("el producto", "")
-                    .replace("producto", "")
-                    .strip()
-                )
+        if new_name:
+            new_name = str(new_name).strip().lower()
 
-                parts = clean_text.split(separator, 1)
+        if not old_name or not new_name:
+            text = message.lower().strip()
 
-                if len(parts) == 2:
-                    old_name = parts[0].strip()
-                    new_name = parts[1].strip()
-                    break
+            patterns = [
+                ("cambia", "por"),
+                ("cambiar", "por"),
+                ("renombra", "como"),
+                ("renombrar", "como"),
+                ("corrige", "por"),
+                ("corregir", "por")
+            ]
+
+            for start_word, separator in patterns:
+                if start_word in text and separator in text:
+                    clean_text = (
+                        text.replace(start_word, "", 1)
+                        .replace("el producto", "")
+                        .replace("producto", "")
+                        .strip()
+                    )
+
+                    parts = clean_text.split(separator, 1)
+
+                    if len(parts) == 2:
+                        old_name = parts[0].strip()
+                        new_name = parts[1].strip()
+                        break
 
         if not old_name or not new_name:
             return (
                 "No pude identificar qué producto quieres cambiar.\n\n"
-                "Usa este formato:\n"
-                "cambia cooper por cereal\n\n"
-                "o:\n"
-                "renombra cooper como cereal"
+                "Ejemplos:\n"
+                "- cambia cooper por cereal\n"
+                "- renombra chocolate latín como chocolate latino"
             )
 
         success = self.inventory_service.rename_food(
@@ -573,11 +602,31 @@ class ChatRouterService:
 
     def handle_add_inventory(
         self,
-        message: str
+        message: str,
+        entities: dict = None
     ) -> str:
 
-        lines = message.lower().splitlines()
+        items = self.get_items_from_entities(entities or {})
         added_items = []
+
+        if items:
+            for item in items:
+                self.inventory_service.add_food(
+                    name=item["name"],
+                    quantity=item["quantity"],
+                    source="whatsapp"
+                )
+
+                added_items.append(
+                    f"- {item['name']} (cantidad: {item['quantity']})"
+                )
+
+            return (
+                "Productos agregados al inventario:\n"
+                + "\n".join(added_items)
+            )
+
+        lines = message.lower().splitlines()
 
         for line in lines:
             line = line.strip()
@@ -592,6 +641,10 @@ class ChatRouterService:
                 .replace("agrega", "")
                 .replace("añade:", "")
                 .replace("añade", "")
+                .replace("compré:", "")
+                .replace("compré", "")
+                .replace("compre:", "")
+                .replace("compre", "")
                 .strip()
             )
 
@@ -619,11 +672,9 @@ class ChatRouterService:
 
         if not added_items:
             return (
-                "No pude identificar productos para agregar.\n\n"
-                "Usa este formato:\n"
-                "agrega:\n"
-                "2 lata de atún\n"
-                "1 paquete de arroz"
+                "No pude identificar productos para agregar. "
+                "Intenta escribirlo de forma natural, por ejemplo: "
+                "'Compré 2 mangos' o 'Agrega una leche y dos huevos'."
             )
 
         return (
@@ -633,12 +684,36 @@ class ChatRouterService:
 
     def handle_remove_inventory(
         self,
-        message: str
+        message: str,
+        entities: dict = None
     ) -> str:
 
-        lines = message.lower().splitlines()
+        items = self.get_items_from_entities(entities or {})
         removed_items = []
         failed_items = []
+
+        if items:
+            for item in items:
+                success = self.inventory_service.remove_food(
+                    name=item["name"],
+                    quantity=item["quantity"]
+                )
+
+                if success:
+                    removed_items.append(
+                        f"- {item['name']} (cantidad: {item['quantity']})"
+                    )
+                else:
+                    failed_items.append(
+                        f"- {item['name']} (cantidad: {item['quantity']})"
+                    )
+
+            return self.build_remove_response(
+                removed_items,
+                failed_items
+            )
+
+        lines = message.lower().splitlines()
 
         for line in lines:
             line = line.strip()
@@ -667,6 +742,10 @@ class ChatRouterService:
                 .replace("gasté", "")
                 .replace("gaste:", "")
                 .replace("gaste", "")
+                .replace("me comí:", "")
+                .replace("me comí", "")
+                .replace("me comi:", "")
+                .replace("me comi", "")
                 .strip()
             )
 
@@ -697,12 +776,21 @@ class ChatRouterService:
 
         if not removed_items and not failed_items:
             return (
-                "No pude identificar productos para eliminar.\n\n"
-                "Usa este formato:\n"
-                "elimina:\n"
-                "1 huevo\n"
-                "2 zanahoria"
+                "No pude identificar productos para descontar. "
+                "Intenta escribirlo de forma natural, por ejemplo: "
+                "'Me comí 2 huevos' o 'Quita un mango'."
             )
+
+        return self.build_remove_response(
+            removed_items,
+            failed_items
+        )
+
+    def build_remove_response(
+        self,
+        removed_items: list,
+        failed_items: list
+    ) -> str:
 
         response = ""
 
@@ -794,14 +882,8 @@ class ChatRouterService:
 
         return "Lista de compras sugerida:\n" + "\n".join(lines)
 
-    def handle_nutrition(
-        self,
-        whatsapp_number: str
-    ) -> str:
-
-        user = self.user_repository.get_by_whatsapp(
-            whatsapp_number
-        )
+    def handle_nutrition(self, whatsapp_number: str) -> str:
+        user = self.user_repository.get_by_whatsapp(whatsapp_number)
 
         if not user:
             return (
@@ -809,9 +891,7 @@ class ChatRouterService:
                 "Escribe cualquier mensaje y te registraré paso a paso."
             )
 
-        profile = self.nutrition_service.generate_profile(
-            user
-        )
+        profile = self.nutrition_service.generate_profile(user)
 
         return (
             "Perfil nutricional calculado:\n"
@@ -823,14 +903,8 @@ class ChatRouterService:
             f"Grasas: {profile.fat_target} g"
         )
 
-    def handle_meal_plan(
-        self,
-        whatsapp_number: str
-    ) -> str:
-
-        user = self.user_repository.get_by_whatsapp(
-            whatsapp_number
-        )
+    def handle_meal_plan(self, whatsapp_number: str) -> str:
+        user = self.user_repository.get_by_whatsapp(whatsapp_number)
 
         if not user:
             return (
@@ -838,10 +912,7 @@ class ChatRouterService:
                 "Escribe cualquier mensaje y te registraré paso a paso."
             )
 
-        profile = self.nutrition_service.generate_profile(
-            user
-        )
-
+        profile = self.nutrition_service.generate_profile(user)
         inventory = self.inventory_service.load_inventory_from_db()
 
         plan_text = self.meal_plan_service.generate_text_meal_plan(
@@ -900,7 +971,6 @@ class ChatRouterService:
             ).strip()
 
             data = {}
-
             parts = data_text.split(",")
 
             for part in parts:
@@ -908,11 +978,7 @@ class ChatRouterService:
                     key, value = part.split("=", 1)
                     data[key.strip().lower()] = value.strip()
 
-            required_fields = [
-                "edad",
-                "peso",
-                "altura"
-            ]
+            required_fields = ["edad", "peso", "altura"]
 
             for field in required_fields:
                 if field not in data:

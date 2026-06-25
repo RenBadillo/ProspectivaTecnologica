@@ -23,55 +23,89 @@ class OrchestratorService:
     def __init__(self):
         self.llm_service = LLMService()
 
-    async def decide(
-        self,
-        message: str
-    ) -> dict:
+    async def decide(self, message: str) -> dict:
 
         prompt = f"""
 Eres un agente orquestador para una alacena inteligente.
 
-Tu tarea es interpretar el mensaje del usuario y devolver un JSON válido.
+Tu tarea es interpretar lenguaje natural y devolver SOLO un JSON válido.
 
 No respondas al usuario final.
 No uses markdown.
 No agregues texto fuera del JSON.
 
-Intents permitidos:
+INTENTS PERMITIDOS:
 inventory, add_inventory, remove_inventory, rename_inventory, recipe, shopping, meal_plan, nutrition, reminders, profile_register, general.
 
-Devuelve exactamente este esquema:
-
+ESQUEMA OBLIGATORIO:
 {{
-  "intent": "inventory",
-  "action": "read_inventory",
+  "intent": "add_inventory",
+  "action": "add_food",
   "confidence": 0.95,
-  "entities": {{}},
+  "entities": {{
+    "items": [
+      {{
+        "name": "mangos",
+        "quantity": 2
+      }}
+    ],
+    "old_name": null,
+    "new_name": null
+  }},
   "needs_profile": false,
-  "reason": "El usuario pregunta qué productos tiene disponibles."
+  "reason": "El usuario indica que compró productos para agregarlos al inventario."
 }}
 
-Reglas:
+REGLAS DE INTENT:
 - Si pregunta qué tiene, qué productos hay, qué comida queda, qué hay en la alacena o despensa: inventory.
-- Si quiere agregar productos: add_inventory.
-- Si quiere eliminar productos: remove_inventory.
-- Si quiere corregir o cambiar nombre de un producto: rename_inventory.
+- Si dice compré, compre, agregué, agregue, mete, añade, registra, sumé, llegó, tengo ahora: add_inventory.
+- Si dice quita, elimina, borra, me comí, consumí, usé, gasté, ya no tengo: remove_inventory.
+- Si dice cambia, corrige, renombra, era, quise decir, sustituye nombre: rename_inventory.
 - Si pide receta, comida o qué cocinar: recipe.
-- Si pide lista de compras o qué comprar: shopping.
-- Si pide plan semanal o dieta: meal_plan.
+- Si pide lista de compras, súper o qué comprar: shopping.
+- Si pide plan semanal, dieta o plan alimenticio: meal_plan.
 - Si pide calorías, macros, TMB o GET: nutrition.
 - Si pregunta qué consumir pronto o qué se puede echar a perder: reminders.
 - Si quiere registrar datos personales: profile_register.
 - Si no queda claro: general.
 
-Mensaje del usuario:
+REGLAS DE ENTIDADES:
+- Para add_inventory y remove_inventory extrae entities.items.
+- Cada item debe tener:
+  - name: nombre del producto en plural o nombre natural.
+  - quantity: número entero.
+- Convierte cantidades escritas con palabras:
+  - "un", "una" = 1
+  - "dos" = 2
+  - "tres" = 3
+  - "cuatro" = 4
+  - "cinco" = 5
+  - "seis" = 6
+  - "siete" = 7
+  - "ocho" = 8
+  - "nueve" = 9
+  - "diez" = 10
+- Si el usuario dice "Compré dos mangos", devuelve:
+  "items": [{{"name": "mangos", "quantity": 2}}]
+- Si dice "Compré una leche y dos huevos", devuelve dos items.
+- Si no hay cantidad explícita, usa quantity = 1.
+
+REGLAS PARA RENOMBRAR:
+- Para rename_inventory usa:
+  "old_name": nombre anterior
+  "new_name": nombre corregido
+- Ejemplo: "cambia cooper por cereal"
+  old_name = "cooper"
+  new_name = "cereal"
+
+MENSAJE DEL USUARIO:
 {message}
 """
 
         response = await self.llm_service.generate(
             prompt=prompt,
             temperature=0.0,
-            max_tokens=180,
+            max_tokens=260,
             format_json=True
         )
 
@@ -123,21 +157,13 @@ Mensaje del usuario:
 
         return parsed
 
-    def extract_json(
-        self,
-        text: str
-    ):
-
+    def extract_json(self, text: str):
         try:
             return json.loads(text)
         except Exception:
             pass
 
-        match = re.search(
-            r"\{.*\}",
-            text,
-            re.DOTALL
-        )
+        match = re.search(r"\{.*\}", text, re.DOTALL)
 
         if not match:
             return None
@@ -147,11 +173,7 @@ Mensaje del usuario:
         except Exception:
             return None
 
-    def validate_schema(
-        self,
-        data: dict
-    ) -> bool:
-
+    def validate_schema(self, data: dict) -> bool:
         required_fields = [
             "intent",
             "action",
@@ -195,7 +217,11 @@ Mensaje del usuario:
             "intent": fallback_intent,
             "action": "fallback",
             "confidence": 0.35,
-            "entities": {},
+            "entities": {
+                "items": [],
+                "old_name": None,
+                "new_name": None
+            },
             "needs_profile": False,
             "reason": (
                 "El LLM no devolvió JSON válido. "
@@ -208,11 +234,7 @@ Mensaje del usuario:
             "model": model
         }
 
-    def rule_based_backup(
-        self,
-        message: str
-    ) -> str:
-
+    def rule_based_backup(self, message: str) -> str:
         text = message.lower().strip()
 
         if any(word in text for word in [
@@ -234,7 +256,10 @@ Mensaje del usuario:
             "mete",
             "compré",
             "compre",
-            "registrar producto"
+            "agregué",
+            "agregue",
+            "registrar producto",
+            "tengo ahora"
         ]):
             return "add_inventory"
 
@@ -242,14 +267,23 @@ Mensaje del usuario:
             "elimina",
             "quita",
             "borra",
-            "ya no tengo"
+            "ya no tengo",
+            "me comí",
+            "me comi",
+            "consumí",
+            "consumi",
+            "usé",
+            "use",
+            "gasté",
+            "gaste"
         ]):
             return "remove_inventory"
 
         if any(word in text for word in [
             "cambia",
             "corrige",
-            "renombra"
+            "renombra",
+            "quise decir"
         ]):
             return "rename_inventory"
 
