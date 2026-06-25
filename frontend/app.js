@@ -3,6 +3,8 @@ const API = "http://127.0.0.1:8000";
 let inventory = [];
 let profiles = {};
 let activeSection = "dashboard";
+let metricsHistory = [];
+let evaluationDashboardData = null;
 
 const titles = {
   dashboard: ["Dashboard", "Resumen general del sistema"],
@@ -10,7 +12,7 @@ const titles = {
   chat: ["Chat bot", "Prueba del flujo principal"],
   history: ["Historial", "Mensajes procesados por el backend"],
   copilots: ["Copilotos", "Perfiles especializados del LLM"],
-  metrics: ["Métricas", "Evaluación del flujo de inventario"],
+  metrics: ["Métricas", "Panel de observabilidad, rendimiento y costos"],
   evaluation: ["Evaluación", "Pruebas de intención, precisión y rendimiento"]
 };
 
@@ -26,7 +28,9 @@ function esc(text) {
 }
 
 function setDot(id, ok) {
-  $(id).className = ok ? "dot ok" : "dot bad";
+  if ($(id)) {
+    $(id).className = ok ? "dot ok" : "dot bad";
+  }
 }
 
 async function fetchJSON(url, options = {}) {
@@ -48,8 +52,7 @@ function showSection(section) {
   });
 
   if (section === "metrics") {
-    loadInventoryMetrics();
-    loadEvaluationMatrix();
+    loadMetricsDashboard();
   }
 
   if (section === "evaluation") {
@@ -89,6 +92,51 @@ async function checkStatus() {
   } catch {
     setDot("dotChat", false);
   }
+}
+
+async function loadSystemHealth() {
+  let backendOk = false;
+  let chatOk = false;
+  let ollamaOk = false;
+  let sqliteOk = false;
+
+  try {
+    await fetchJSON(`${API}/health`);
+    backendOk = true;
+  } catch {
+    backendOk = false;
+  }
+
+  try {
+    await fetchJSON(`${API}/chat/health`);
+    chatOk = true;
+  } catch {
+    chatOk = false;
+  }
+
+  try {
+    const res = await fetch("http://localhost:11434/api/tags");
+    ollamaOk = res.ok;
+  } catch {
+    ollamaOk = false;
+  }
+
+  try {
+    await fetchJSON(`${API}/metrics/real-chat-analysis`);
+    sqliteOk = true;
+  } catch {
+    sqliteOk = false;
+  }
+
+  setDot("healthBackendDot", backendOk);
+  setDot("healthChatDot", chatOk);
+  setDot("healthOllamaDot", ollamaOk);
+  setDot("healthSQLiteDot", sqliteOk);
+
+  $("healthBackendText").textContent = backendOk ? "Online" : "Sin conexión";
+  $("healthChatText").textContent = chatOk ? "Disponible" : "No disponible";
+  $("healthOllamaText").textContent = ollamaOk ? "Modelo local disponible" : "Ollama no responde";
+  $("healthSQLiteText").textContent = sqliteOk ? "Operativo" : "No verificado";
 }
 
 async function loadDashboard() {
@@ -266,6 +314,10 @@ async function sendMainChat(event) {
 
     await loadInventory(false);
     await loadDashboard();
+
+    if (activeSection === "metrics") {
+      await loadMetricsDashboard();
+    }
   } catch (error) {
     addBubble("chatWindow", "Error", error.message, "error");
   }
@@ -405,7 +457,11 @@ function bindEvents() {
   });
 
   if ($("reloadMetricsBtn")) {
-    $("reloadMetricsBtn").addEventListener("click", loadInventoryMetrics);
+    $("reloadMetricsBtn").addEventListener("click", loadMetricsDashboard);
+  }
+
+  if ($("reloadHealthBtn")) {
+    $("reloadHealthBtn").addEventListener("click", loadSystemHealth);
   }
 
   if ($("reloadEvaluationMatrixBtn")) {
@@ -452,8 +508,7 @@ async function refreshAll() {
   }
 
   if (activeSection === "metrics") {
-    await loadInventoryMetrics();
-    await loadEvaluationMatrix();
+    await loadMetricsDashboard();
   }
 
   if (activeSection === "evaluation") {
@@ -478,12 +533,20 @@ async function init() {
   setInterval(checkStatus, 10000);
 }
 
+async function loadMetricsDashboard() {
+  await Promise.allSettled([
+    loadSystemHealth(),
+    loadInventoryMetrics(),
+    loadEvaluationMatrix()
+  ]);
+}
+
 async function loadInventoryMetrics() {
   const summaryData = await fetchJSON(`${API}/metrics/inventory-summary`);
   const historyData = await fetchJSON(`${API}/metrics/real-chat-analysis`);
 
   const summary = summaryData.summary || {};
-  const history = historyData.history || [];
+  metricsHistory = historyData.history || [];
 
   $("metricInventoryTotal").textContent =
     summary.total_queries ?? 0;
@@ -491,16 +554,6 @@ async function loadInventoryMetrics() {
   $("metricInventoryAvg").textContent =
     summary.avg_latency
       ? Number(summary.avg_latency).toFixed(4)
-      : "0";
-
-  $("metricInventoryMin").textContent =
-    summary.min_latency
-      ? Number(summary.min_latency).toFixed(4)
-      : "0";
-
-  $("metricInventoryMax").textContent =
-    summary.max_latency
-      ? Number(summary.max_latency).toFixed(4)
       : "0";
 
   $("metricIntentPrecision").textContent =
@@ -513,19 +566,20 @@ async function loadInventoryMetrics() {
       ? `${(Number(summary.response_rate) * 100).toFixed(1)}%`
       : "0%";
 
+  renderExecutionHistory();
+  renderIntentChart();
+  renderLatencyChart();
+}
+
+function renderExecutionHistory() {
   $("inventoryMetricsTable").innerHTML =
-    history.map((item) => {
+    metricsHistory.map((item, index) => {
       const hasResponse =
         item.respuesta && item.respuesta.trim().length > 0;
 
-      const isSlow =
-        Number(item.latency_seconds || 0) > 1;
-
-      const isGeneral =
-        item.intent === "general";
-
-      const isSuccess =
-        Number(item.success) === 1;
+      const isSuccess = Number(item.success) === 1;
+      const isSlow = Number(item.latency_seconds || 0) > 20;
+      const isGeneral = item.intent === "general";
 
       const shouldReview =
         !isSuccess || !hasResponse || isSlow || isGeneral;
@@ -536,21 +590,19 @@ async function loadInventoryMetrics() {
       return `
         <tr>
           <td>${esc(item.created_at || "—")}</td>
-          <td>${esc(item.numero || "—")}</td>
-          <td>${esc(item.mensaje || "—")}</td>
+          <td>${esc(shortText(item.mensaje || "—", 80))}</td>
           <td>${esc(item.intent || "—")}</td>
           <td>${Number(item.latency_seconds || 0).toFixed(4)} s</td>
-          <td>${esc(shortText(item.respuesta || "", 180))}</td>
-          <td>${esc(item.error || "—")}</td>
+          <td><span class="${resultClass}">${resultText}</span></td>
           <td>
-            <span class="${resultClass}">
-              ${resultText}
-            </span>
+            <button class="btn ghost" onclick="showMetricDetail(${index})">
+              Ver detalle
+            </button>
           </td>
         </tr>
       `;
     }).join("") ||
-    `<tr><td colspan="8">No hay métricas reales todavía.</td></tr>`;
+    `<tr><td colspan="6">No hay métricas reales todavía.</td></tr>`;
 }
 
 async function loadEvaluation() {
@@ -611,6 +663,7 @@ async function runInventoryTests() {
 
 async function loadEvaluationMatrix() {
   const data = await fetchJSON(`${API}/metrics/evaluation-dashboard`);
+  evaluationDashboardData = data;
 
   const quality = data.quality || {};
   const structured = data.structured_output || {};
@@ -637,14 +690,32 @@ async function loadEvaluationMatrix() {
   const totalTokens =
     Number(operation.llm?.total_tokens || 0);
 
+  const promptTokens =
+    Number(operation.llm?.prompt_tokens || 0);
+
+  const completionTokens =
+    Number(operation.llm?.completion_tokens || 0);
+
   const tokensPerSecond =
     Number(operation.llm?.avg_tokens_per_second || 0);
+
+  const avgConfidence =
+    Number(operation.orchestrator?.avg_confidence || 0) * 100;
+
+  const modelName =
+    metricsHistory.find((item) => item.orchestrator_model)?.orchestrator_model ||
+    "llama3.2:3b";
+
+  $("modelName").textContent = modelName;
+  $("modelTokensTotal").textContent = totalTokens;
+  $("modelConfidenceAvg").textContent = `${avgConfidence.toFixed(1)}%`;
+  $("modelTokensPerSecond").textContent = tokensPerSecond.toFixed(2);
 
   $("evaluationMatrixTable").innerHTML = `
     <tr>
       <td>Calidad de decisión</td>
-      <td>¿El motor clasificó correctamente la intención?</td>
-      <td>Accuracy, precision, recall, F1-score, matriz de confusión</td>
+      <td>¿El orquestador clasificó correctamente la intención?</td>
+      <td>Accuracy, precision, recall, F1-score</td>
       <td>
         Accuracy: ${accuracy.toFixed(1)}%<br>
         Precision: ${precision.toFixed(1)}%<br>
@@ -655,8 +726,8 @@ async function loadEvaluationMatrix() {
 
     <tr>
       <td>Salida estructurada</td>
-      <td>¿El backend entregó JSON válido y usable por software?</td>
-      <td>JSON validity rate, schema valid</td>
+      <td>¿El LLM devolvió JSON válido y compatible con el esquema?</td>
+      <td>JSON validity rate, schema valid rate</td>
       <td>
         JSON válido: ${jsonValidity.toFixed(1)}%<br>
         Schema válido: ${schemaValidity.toFixed(1)}%
@@ -665,8 +736,8 @@ async function loadEvaluationMatrix() {
 
     <tr>
       <td>Arquitectura</td>
-      <td>¿El backend procesó correctamente la solicitud?</td>
-      <td>Backend success rate, architecture success</td>
+      <td>¿El backend ejecutó correctamente el flujo?</td>
+      <td>Success rate, respuesta no vacía, error rate</td>
       <td>
         Solicitudes: ${architecture.total_requests || 0}<br>
         Éxito arquitectura: ${architectureSuccess.toFixed(1)}%
@@ -676,15 +747,219 @@ async function loadEvaluationMatrix() {
     <tr>
       <td>Operación</td>
       <td>¿Cuánto tarda, cuántos tokens usa y cuánto costaría?</td>
-      <td>Latencia, tokens, tokens/s, costo estimado</td>
+      <td>Latencia, tokens, tokens/s, costo</td>
       <td>
         Latencia promedio: ${avgLatency.toFixed(4)} s<br>
+        Prompt tokens: ${promptTokens}<br>
+        Completion tokens: ${completionTokens}<br>
         Tokens totales: ${totalTokens}<br>
         Tokens/s promedio: ${tokensPerSecond.toFixed(2)}<br>
         Costo local Ollama: $0
       </td>
     </tr>
   `;
+
+  renderTokenChart(promptTokens, completionTokens, totalTokens);
+  renderCostChart(promptTokens, completionTokens);
+}
+
+function showMetricDetail(index) {
+  const item = metricsHistory[index];
+
+  if (!item) {
+    return;
+  }
+
+  const jsonValid = Number(item.orchestrator_json_valid) === 1;
+  const schemaValid = Number(item.orchestrator_schema_valid) === 1;
+  const serviceName = getServiceName(item.intent);
+
+  $("executionDetailPanel").classList.remove("hidden");
+
+  $("executionDetailContent").innerHTML = `
+    <div class="timeline">
+      <div class="timeline-step">
+        <div class="timeline-index">1</div>
+        <div>
+          <h4>Usuario</h4>
+          <p>${esc(item.mensaje || "—")}</p>
+          <small>Número: ${esc(item.numero || "—")}</small>
+        </div>
+      </div>
+
+      <div class="timeline-step">
+        <div class="timeline-index">2</div>
+        <div>
+          <h4>Backend /chat</h4>
+          <p>Petición recibida y registrada por FastAPI.</p>
+          <small>Fecha: ${esc(item.created_at || "—")}</small><br>
+          <small>Latencia total: ${Number(item.latency_seconds || 0).toFixed(4)} s</small>
+        </div>
+      </div>
+
+      <div class="timeline-step">
+        <div class="timeline-index">3</div>
+        <div>
+          <h4>Orquestador LLM</h4>
+          <p>Modelo: ${esc(item.orchestrator_model || "—")}</p>
+          <small>Intent LLM: ${esc(item.orchestrator_intent || "—")}</small><br>
+          <small>Confianza: ${Number(item.orchestrator_confidence || 0).toFixed(2)}</small><br>
+          <small>Tokens: ${esc(item.orchestrator_tokens || 0)}</small><br>
+          <small>JSON válido: ${jsonValid ? "Sí" : "No"}</small><br>
+          <small>Schema válido: ${schemaValid ? "Sí" : "No"}</small>
+        </div>
+      </div>
+
+      <div class="timeline-step">
+        <div class="timeline-index">4</div>
+        <div>
+          <h4>Servicio ejecutado</h4>
+          <p>${esc(serviceName)}</p>
+          <small>Intent final: ${esc(item.intent || "—")}</small><br>
+          <small>Éxito: ${Number(item.success) === 1 ? "Sí" : "No"}</small><br>
+          <small>Error: ${esc(item.error || "—")}</small>
+        </div>
+      </div>
+
+      <div class="timeline-step">
+        <div class="timeline-index">5</div>
+        <div>
+          <h4>Respuesta al usuario</h4>
+          <p>${esc(item.respuesta || "—")}</p>
+        </div>
+      </div>
+    </div>
+  `;
+
+  $("executionDetailPanel").scrollIntoView({
+    behavior: "smooth",
+    block: "start"
+  });
+}
+
+function renderIntentChart() {
+  const counts = {};
+
+  metricsHistory.forEach((item) => {
+    const intent = item.intent || "unknown";
+    counts[intent] = (counts[intent] || 0) + 1;
+  });
+
+  renderBarList(
+    "intentChart",
+    Object.entries(counts).map(([label, value]) => ({
+      label,
+      value
+    }))
+  );
+}
+
+function renderLatencyChart() {
+  const lastItems = metricsHistory.slice(0, 8).reverse();
+
+  renderBarList(
+    "latencyChart",
+    lastItems.map((item, index) => ({
+      label: `#${index + 1}`,
+      value: Number(item.latency_seconds || 0),
+      suffix: "s"
+    }))
+  );
+}
+
+function renderTokenChart(promptTokens, completionTokens, totalTokens) {
+  renderBarList(
+    "tokenChart",
+    [
+      { label: "Prompt", value: promptTokens },
+      { label: "Completion", value: completionTokens },
+      { label: "Total", value: totalTokens }
+    ]
+  );
+}
+
+function renderCostChart(promptTokens, completionTokens) {
+  const costs = estimateCosts(promptTokens, completionTokens);
+
+  renderBarList(
+    "costChart",
+    [
+      { label: "Ollama local", value: 0, prefix: "$" },
+      { label: "GPT-4o-mini", value: costs["gpt-4o-mini"], prefix: "$" },
+      { label: "GPT-4o", value: costs["gpt-4o"], prefix: "$" },
+      { label: "Claude 3.5", value: costs["claude-3-5-sonnet"], prefix: "$" },
+      { label: "Gemini 1.5 Pro", value: costs["gemini-1.5-pro"], prefix: "$" }
+    ],
+    6
+  );
+}
+
+function renderBarList(containerId, rows, decimals = 2) {
+  const container = $(containerId);
+
+  if (!container) {
+    return;
+  }
+
+  if (!rows || !rows.length) {
+    container.innerHTML = `<div class="empty-chart">Sin datos todavía.</div>`;
+    return;
+  }
+
+  const maxValue = Math.max(...rows.map((row) => Number(row.value || 0)), 1);
+
+  container.innerHTML = rows.map((row) => {
+    const value = Number(row.value || 0);
+    const width = Math.max(4, (value / maxValue) * 100);
+    const prefix = row.prefix || "";
+    const suffix = row.suffix || "";
+    const displayValue =
+      Number.isInteger(value)
+        ? `${prefix}${value}${suffix}`
+        : `${prefix}${value.toFixed(decimals)}${suffix}`;
+
+    return `
+      <div class="bar-row">
+        <div class="bar-label">
+          <span>${esc(row.label)}</span>
+          <strong>${displayValue}</strong>
+        </div>
+        <div class="bar-track">
+          <div class="bar-fill" style="width: ${width}%"></div>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+function estimateCosts(promptTokens, completionTokens) {
+  const prompt = Number(promptTokens || 0) / 1_000_000;
+  const completion = Number(completionTokens || 0) / 1_000_000;
+
+  return {
+    "gpt-4o-mini": prompt * 0.15 + completion * 0.60,
+    "gpt-4o": prompt * 5.00 + completion * 15.00,
+    "claude-3-5-sonnet": prompt * 3.00 + completion * 15.00,
+    "gemini-1.5-pro": prompt * 3.50 + completion * 10.50
+  };
+}
+
+function getServiceName(intent) {
+  const services = {
+    inventory: "InventoryService.handle_inventory()",
+    add_inventory: "InventoryService.add_food()",
+    remove_inventory: "InventoryService.remove_food()",
+    rename_inventory: "InventoryService.rename_food()",
+    recipe: "RecipeService.generate_recipe()",
+    shopping: "ShoppingService.generate_shopping_list()",
+    meal_plan: "MealPlanService.generate_text_meal_plan()",
+    nutrition: "NutritionService.generate_profile()",
+    reminders: "InventoryService.get_consumption_reminders()",
+    profile_register: "UserRepository.create()",
+    general: "LLMService.generate()"
+  };
+
+  return services[intent] || "Servicio no identificado";
 }
 
 function shortText(text, maxLength = 120) {

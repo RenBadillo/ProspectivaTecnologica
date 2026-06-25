@@ -32,14 +32,19 @@ async def recibir_mensaje(
     start_time = time.perf_counter()
 
     try:
-        intent = chat_router.classify(
-            entrada.mensaje
-        )
-
-        respuesta = await chat_router.handle_message(
+        result = await chat_router.handle_message(
             entrada.numero,
             entrada.mensaje
         )
+
+        if isinstance(result, dict):
+            respuesta = result.get("respuesta", "")
+            intent = result.get("intent", "general")
+            orchestrator = result.get("orchestrator", {})
+        else:
+            respuesta = result
+            intent = chat_router.classify(entrada.mensaje)
+            orchestrator = {}
 
         latency_seconds = round(
             time.perf_counter() - start_time,
@@ -53,14 +58,16 @@ async def recibir_mensaje(
             intent=intent,
             latency_seconds=latency_seconds,
             success=True,
-            error=None
+            error=None,
+            orchestrator=orchestrator
         )
 
         return {
             "numero": entrada.numero,
             "respuesta": respuesta,
             "intent": intent,
-            "latency_seconds": latency_seconds
+            "latency_seconds": latency_seconds,
+            "orchestrator": orchestrator
         }
 
     except Exception as error:
@@ -76,7 +83,8 @@ async def recibir_mensaje(
             intent="error",
             latency_seconds=latency_seconds,
             success=False,
-            error=str(error)
+            error=str(error),
+            orchestrator=orchestrator
         )
 
         raise error

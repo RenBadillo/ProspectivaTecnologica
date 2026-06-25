@@ -1,4 +1,5 @@
 from app.services.agent_decision_service import AgentDecisionService
+from app.services.orchestrator_service import OrchestratorService
 from app.models.user_profile import UserProfile
 from app.database.user_repository import UserRepository
 from app.services.inventory_service import InventoryService
@@ -24,12 +25,13 @@ class ChatRouterService:
         self.user_repository = UserRepository()
         self.llm_service = LLMService()
         self.agent_decision_service = AgentDecisionService()
+        self.orchestrator_service = OrchestratorService()
 
     def classify(self, message: str) -> str:
         text = message.lower().strip()
 
         if text.startswith("registrar perfil"):
-            return "register_profile"
+            return "profile_register"
 
         if any(p in text for p in [
             "cambia", "cambiar", "renombra", "renombrar",
@@ -78,7 +80,7 @@ class ChatRouterService:
             "que hay en mi alacena",
             "alacena",
             "despensa"
-         ]):
+        ]):
             return "inventory"
 
         if any(p in text for p in [
@@ -115,31 +117,102 @@ class ChatRouterService:
 
         return "general"
 
+    def normalize_intent(
+        self,
+        intent: str
+    ) -> str:
+
+        if intent == "register_profile":
+            return "profile_register"
+
+        if intent == "profile":
+            return "profile_register"
+
+        if intent == "inventory_add":
+            return "add_inventory"
+
+        if intent == "inventory_remove":
+            return "remove_inventory"
+
+        if intent == "inventory_rename":
+            return "rename_inventory"
+
+        return intent or "general"
+
     async def handle_message(
         self,
         whatsapp_number: str,
         message: str
-    ) -> str:
+    ) -> dict:
 
         if whatsapp_number in self.registration_sessions:
-            return self.continue_registration(
+            response = self.continue_registration(
                 whatsapp_number,
                 message
+            )
+
+            return {
+                "respuesta": response,
+                "intent": "profile_register",
+                "orchestrator": {
+                    "intent": "profile_register",
+                    "action": "continue_registration",
+                    "confidence": 1.0,
+                    "json_valid": True,
+                    "schema_valid": True,
+                    "tokens_used": 0,
+                    "model": "system"
+                }
+            }
+
+        decision = await self.orchestrator_service.decide(
+            message
+        )
+
+        intent = self.normalize_intent(
+            decision.get("intent", "general")
+        )
+
+        fallback_intent = self.classify(message)
+
+        if intent == "general" and fallback_intent != "general":
+            intent = fallback_intent
+            decision["intent"] = intent
+            decision["action"] = "rule_backup_after_orchestrator"
+            decision["reason"] = (
+                "El orquestador devolvió general, "
+                "pero el respaldo por reglas detectó una intención más específica."
             )
 
         user = self.user_repository.get_by_whatsapp(
             whatsapp_number
         )
 
-        if not user and not message.lower().startswith("registrar perfil"):
-            self.start_registration(whatsapp_number)
-            return (
-                "Hola. No encontré tu perfil nutricional.\n\n"
-                "Vamos a registrarlo paso a paso.\n"
-                "Primero, ¿cómo te llamas?"
+        if (
+            not user
+            and intent not in [
+                "profile_register",
+                "inventory",
+                "add_inventory",
+                "remove_inventory",
+                "rename_inventory",
+                "reminders",
+                "general"
+            ]
+        ):
+            self.start_registration(
+                whatsapp_number
             )
 
-        intent = self.classify(message)
+            return {
+                "respuesta": (
+                    "Hola. No encontré tu perfil nutricional.\n\n"
+                    "Vamos a registrarlo paso a paso.\n"
+                    "Primero, ¿cómo te llamas?"
+                ),
+                "intent": "profile_register",
+                "orchestrator": decision
+            }
 
         inventory = self.inventory_service.load_inventory_from_db()
 
@@ -153,31 +226,37 @@ class ChatRouterService:
             .build_agent_message(inventory_state)
         )
 
-        if intent == "register_profile":
-            return self.handle_register_profile(
+        if intent == "profile_register":
+            response = self.handle_register_profile(
                 whatsapp_number,
                 message
             )
 
-        if intent == "rename_inventory":
-            return self.handle_rename_inventory(message)
+        elif intent == "rename_inventory":
+            response = self.handle_rename_inventory(
+                message
+            )
 
-        if intent == "reminders":
-            return self.handle_reminders()
+        elif intent == "reminders":
+            response = self.handle_reminders()
 
-        if intent == "add_inventory":
-            return self.handle_add_inventory(message)
+        elif intent == "add_inventory":
+            response = self.handle_add_inventory(
+                message
+            )
 
-        if intent == "remove_inventory":
-            return self.handle_remove_inventory(message)
+        elif intent == "remove_inventory":
+            response = self.handle_remove_inventory(
+                message
+            )
 
-        if intent == "inventory":
-            return self.handle_inventory()
+        elif intent == "inventory":
+            response = self.handle_inventory()
 
-        if intent == "inventory_analysis":
-            return self.handle_inventory_analysis()
+        elif intent == "inventory_analysis":
+            response = self.handle_inventory_analysis()
 
-        if intent == "recipe":
+        elif intent == "recipe":
             agent_context = (
                 self.agent_decision_service
                 .build_recipe_priority_context(
@@ -185,33 +264,35 @@ class ChatRouterService:
                 )
             )
 
-            return await self.recipe_service.generate_recipe(
+            response = await self.recipe_service.generate_recipe(
                 whatsapp_number,
                 agent_context=agent_context
             )
 
-            return self.add_agent_notice(
-                "Recomendación del agente:\n" + recipe,
-                agent_message
-            )
+        elif intent == "shopping":
+            response = self.handle_shopping()
 
-        if intent == "shopping":
-            return self.handle_shopping()
-
-        if intent == "nutrition":
-            return self.handle_nutrition(
+        elif intent == "nutrition":
+            response = self.handle_nutrition(
                 whatsapp_number
             )
 
-        if intent == "meal_plan":
-            return self.handle_meal_plan(
+        elif intent == "meal_plan":
+            response = self.handle_meal_plan(
                 whatsapp_number
             )
 
-        return await self.handle_general(
-            message,
-            agent_message=agent_message
-        )
+        else:
+            response = await self.handle_general(
+                message,
+                agent_message=agent_message
+            )
+
+        return {
+            "respuesta": response,
+            "intent": intent,
+            "orchestrator": decision
+        }
 
     def start_registration(
         self,
@@ -400,7 +481,7 @@ class ChatRouterService:
             )
 
         return (
-            "Inventario actual:\n"
+            "Esto es lo que tienes registrado en tu inventario:\n"
             + "\n".join(lines)
         )
 
@@ -430,7 +511,11 @@ class ChatRouterService:
             + "\n".join(lines)
         )
 
-    def handle_rename_inventory(self, message: str) -> str:
+    def handle_rename_inventory(
+        self,
+        message: str
+    ) -> str:
+
         text = message.lower().strip()
 
         patterns = [
@@ -486,7 +571,11 @@ class ChatRouterService:
             f"- {old_name} → {new_name}"
         )
 
-    def handle_add_inventory(self, message: str) -> str:
+    def handle_add_inventory(
+        self,
+        message: str
+    ) -> str:
+
         lines = message.lower().splitlines()
         added_items = []
 
@@ -542,7 +631,11 @@ class ChatRouterService:
             + "\n".join(added_items)
         )
 
-    def handle_remove_inventory(self, message: str) -> str:
+    def handle_remove_inventory(
+        self,
+        message: str
+    ) -> str:
+
         lines = message.lower().splitlines()
         removed_items = []
         failed_items = []
@@ -779,13 +872,14 @@ class ChatRouterService:
         response = await self.llm_service.generate(
             prompt=(
                 "Eres un asistente de alacena inteligente. "
-                "Responde en español, claro y breve.\n"
+                "Responde en español natural, amable, claro y breve. "
+                "No inventes información y usa el inventario solo si es relevante.\n"
                 f"Inventario completo: {inventory_text}\n"
                 f"Observaciones del agente: {agent_message or 'sin alertas'}\n"
                 f"Usuario: {message}"
             ),
-            temperature=0.4,
-            max_tokens=180
+            temperature=0.5,
+            max_tokens=220
         )
 
         return response.content

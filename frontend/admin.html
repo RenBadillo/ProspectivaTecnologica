@@ -253,11 +253,69 @@
     </section>
 
     <section id="metrics" class="section">
+      <div class="observability-hero">
+        <div>
+          <p class="eyebrow">Observabilidad</p>
+          <h2>Métricas v2 del sistema inteligente</h2>
+          <p>
+            Este panel muestra salud del sistema, desempeño del orquestador LLM,
+            recorrido de información, tokens, latencia, costos y calidad de decisión.
+          </p>
+        </div>
+        <div class="actions">
+          <button id="reloadHealthBtn" class="btn ghost">Recargar salud</button>
+          <button id="reloadMetricsBtn" class="btn primary">Recargar todo</button>
+        </div>
+      </div>
+
+      <article class="card">
+        <div class="card-head">
+          <div>
+            <h3>Salud del sistema</h3>
+            <p class="muted">Estado operativo de backend, API, Ollama, SQLite y métricas clave.</p>
+          </div>
+        </div>
+
+        <div class="health-grid">
+          <div class="health-card">
+            <span id="healthBackendDot" class="dot"></span>
+            <div>
+              <strong>Backend</strong>
+              <p id="healthBackendText">Verificando...</p>
+            </div>
+          </div>
+
+          <div class="health-card">
+            <span id="healthChatDot" class="dot"></span>
+            <div>
+              <strong>Chat API</strong>
+              <p id="healthChatText">Verificando...</p>
+            </div>
+          </div>
+
+          <div class="health-card">
+            <span id="healthOllamaDot" class="dot"></span>
+            <div>
+              <strong>Ollama</strong>
+              <p id="healthOllamaText">Verificando...</p>
+            </div>
+          </div>
+
+          <div class="health-card">
+            <span id="healthSQLiteDot" class="dot"></span>
+            <div>
+              <strong>SQLite</strong>
+              <p id="healthSQLiteText">Verificando...</p>
+            </div>
+          </div>
+        </div>
+      </article>
+
       <div class="stats-grid">
         <article class="stat-card">
-          <span>Consultas inventario</span>
+          <span>Consultas reales</span>
           <strong id="metricInventoryTotal">—</strong>
-          <small>total</small>
+          <small>mensajes procesados</small>
         </article>
 
         <article class="stat-card">
@@ -267,21 +325,9 @@
         </article>
 
         <article class="stat-card">
-          <span>Latencia mínima</span>
-          <strong id="metricInventoryMin">—</strong>
-          <small>segundos</small>
-        </article>
-
-        <article class="stat-card">
-          <span>Latencia máxima</span>
-          <strong id="metricInventoryMax">—</strong>
-          <small>segundos</small>
-        </article>
-
-        <article class="stat-card">
-          <span>Precisión</span>
+          <span>Precisión intent</span>
           <strong id="metricIntentPrecision">0%</strong>
-          <small>intent correcto</small>
+          <small>no clasificado como general</small>
         </article>
 
         <article class="stat-card">
@@ -294,14 +340,60 @@
       <article class="card">
         <div class="card-head">
           <div>
-            <h3>Matriz de evaluación técnica</h3>
-            <p class="muted">
-              Resume calidad de decisión, salida estructurada, arquitectura y operación.
-            </p>
+            <h3>Análisis del modelo y orquestador</h3>
+            <p class="muted">Resumen de tokens, confianza, JSON, schema, latencia y costo.</p>
           </div>
-          <button id="reloadEvaluationMatrixBtn" class="btn ghost">
-            Recargar matriz
-          </button>
+          <button id="reloadEvaluationMatrixBtn" class="btn ghost">Recargar análisis</button>
+        </div>
+
+        <div class="stats-grid">
+          <article class="stat-card">
+            <span>Modelo</span>
+            <strong id="modelName" class="model-text">—</strong>
+            <small>orquestador</small>
+          </article>
+
+          <article class="stat-card">
+            <span>Tokens totales</span>
+            <strong id="modelTokensTotal">0</strong>
+            <small>LLM</small>
+          </article>
+
+          <article class="stat-card">
+            <span>Confianza promedio</span>
+            <strong id="modelConfidenceAvg">0%</strong>
+            <small>orquestador</small>
+          </article>
+
+          <article class="stat-card">
+            <span>Tokens/s</span>
+            <strong id="modelTokensPerSecond">0</strong>
+            <small>promedio</small>
+          </article>
+        </div>
+
+        <div class="grid-2">
+          <div class="metric-box">
+            <h4>Distribución de intents</h4>
+            <div id="intentChart" class="bar-list"></div>
+          </div>
+
+          <div class="metric-box">
+            <h4>Últimas latencias</h4>
+            <div id="latencyChart" class="bar-list"></div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="metric-box">
+            <h4>Consumo de tokens</h4>
+            <div id="tokenChart" class="bar-list"></div>
+          </div>
+
+          <div class="metric-box">
+            <h4>Comparación de costo estimado</h4>
+            <div id="costChart" class="bar-list"></div>
+          </div>
         </div>
 
         <div class="table-wrap">
@@ -322,10 +414,11 @@
       <article class="card">
         <div class="card-head">
           <div>
-            <h3>Historial de consultas de inventario</h3>
-            <p class="muted">Mide tiempo, intención, respuesta y estado del flujo de inventario.</p>
+            <h3>Historial real de ejecución</h3>
+            <p class="muted">
+              Consulta el recorrido completo de cada mensaje procesado por el sistema.
+            </p>
           </div>
-          <button id="reloadMetricsBtn" class="btn ghost">Recargar</button>
         </div>
 
         <div class="table-wrap">
@@ -333,18 +426,27 @@
             <thead>
               <tr>
                 <th>Fecha</th>
-                <th>Número</th>
-                <th>Mensaje real</th>
-                <th>Intent</th>
+                <th>Mensaje</th>
+                <th>Intent final</th>
                 <th>Tiempo</th>
-                <th>Respuesta</th>
-                <th>Error</th>
                 <th>Resultado</th>
+                <th>Detalle</th>
               </tr>
             </thead>
             <tbody id="inventoryMetricsTable"></tbody>
           </table>
         </div>
+      </article>
+
+      <article id="executionDetailPanel" class="card hidden">
+        <div class="card-head">
+          <div>
+            <h3>Detalle de ejecución</h3>
+            <p class="muted">Recorrido: usuario → backend → orquestador → servicio → respuesta.</p>
+          </div>
+        </div>
+
+        <div id="executionDetailContent"></div>
       </article>
     </section>
 
@@ -412,7 +514,6 @@
         </div>
       </article>
     </section>
-
   </main>
 
   <script src="app.js"></script>

@@ -11,7 +11,6 @@ class LLMService:
         self,
         model: str = "llama3.2:3b"
     ):
-
         self.model = model
         self.url = "http://localhost:11434/api/generate"
         self.metrics_repository = MetricsRepository()
@@ -20,39 +19,36 @@ class LLMService:
         self,
         prompt: str,
         temperature: float = 0.4,
-        max_tokens: int = 500
+        max_tokens: int = 500,
+        format_json: bool = False
     ) -> LLMResponse:
 
         start_time = time.perf_counter()
 
         try:
+            payload = {
+                "model": self.model,
+                "prompt": prompt,
+                "stream": False,
+                "options": {
+                    "temperature": temperature,
+                    "num_predict": max_tokens
+                }
+            }
 
-            async with httpx.AsyncClient(
-                timeout=10.0
-            ) as client:
+            if format_json:
+                payload["format"] = "json"
 
+            async with httpx.AsyncClient(timeout=180.0) as client:
                 response = await client.post(
                     self.url,
-                    json={
-                        "model": self.model,
-                        "prompt": prompt,
-                        "stream": False,
-                        "options": {
-                            "temperature": temperature,
-                            "num_predict": max_tokens
-                        }
-                    }
+                    json=payload
                 )
 
                 response.raise_for_status()
-
                 data = response.json()
 
-                content = (
-                    data
-                    .get("response", "")
-                    .strip()
-                )
+                content = data.get("response", "").strip()
 
                 latency_seconds = round(
                     time.perf_counter() - start_time,
@@ -67,10 +63,7 @@ class LLMService:
                     data.get("eval_count", 0)
                 )
 
-                total_tokens = (
-                    prompt_tokens
-                    + completion_tokens
-                )
+                total_tokens = prompt_tokens + completion_tokens
 
                 tokens_per_second = 0
 
@@ -90,6 +83,14 @@ class LLMService:
                     tokens_per_second=tokens_per_second
                 )
 
+                if not content:
+                    return LLMResponse(
+                        success=False,
+                        content="El modelo devolvió una respuesta vacía.",
+                        tokens_used=total_tokens,
+                        model=self.model
+                    )
+
                 return LLMResponse(
                     success=True,
                     content=content,
@@ -98,7 +99,6 @@ class LLMService:
                 )
 
         except Exception as error:
-
             return LLMResponse(
                 success=False,
                 content=str(error),
