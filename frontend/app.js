@@ -897,9 +897,7 @@ function renderCostChart(promptTokens, completionTokens) {
 function renderBarList(containerId, rows, decimals = 2) {
   const container = $(containerId);
 
-  if (!container) {
-    return;
-  }
+  if (!container) return;
 
   if (!rows || !rows.length) {
     container.innerHTML = `<div class="empty-chart">Sin datos todavía.</div>`;
@@ -913,19 +911,20 @@ function renderBarList(containerId, rows, decimals = 2) {
     const width = Math.max(4, (value / maxValue) * 100);
     const prefix = row.prefix || "";
     const suffix = row.suffix || "";
-    const displayValue =
-      Number.isInteger(value)
-        ? `${prefix}${value}${suffix}`
-        : `${prefix}${value.toFixed(decimals)}${suffix}`;
+
+    const displayValue = Number.isInteger(value)
+      ? `${prefix}${value}${suffix}`
+      : `${prefix}${value.toFixed(decimals)}${suffix}`;
 
     return `
-      <div class="bar-row">
-        <div class="bar-label">
-          <span>${esc(row.label)}</span>
-          <strong>${displayValue}</strong>
+      <div style="display:grid; gap:6px; margin-bottom:14px;">
+        <div style="display:flex; justify-content:space-between; gap:12px; font-size:14px;">
+          <span style="color:#6b7a72; font-weight:800;">${esc(row.label)}</span>
+          <strong style="color:#1a7a4a;">${displayValue}</strong>
         </div>
-        <div class="bar-track">
-          <div class="bar-fill" style="width: ${width}%"></div>
+
+        <div style="width:100%; height:12px; background:#edf8f1; border-radius:999px; overflow:hidden;">
+          <div style="height:100%; width:${width}%; background:#1a7a4a; border-radius:999px;"></div>
         </div>
       </div>
     `;
