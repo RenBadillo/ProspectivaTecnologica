@@ -571,21 +571,50 @@ async function loadInventoryMetrics() {
   renderLatencyChart();
 }
 
+function getExecutionStatus(item) {
+  const hasResponse = item.respuesta && item.respuesta.trim().length > 0;
+  const isSuccess = Number(item.success) === 1;
+  const isSlow = Number(item.latency_seconds || 0) > 20;
+  const isGeneral = item.intent === "general";
+
+  if (!isSuccess) {
+    return {
+      text: "Error backend",
+      className: "badge zero"
+    };
+  }
+
+  if (!hasResponse) {
+    return {
+      text: "Sin respuesta",
+      className: "badge zero"
+    };
+  }
+
+  if (isGeneral) {
+    return {
+      text: "Intent general",
+      className: "badge zero"
+    };
+  }
+
+  if (isSlow) {
+    return {
+      text: "Latencia alta",
+      className: "badge low"
+    };
+  }
+
+  return {
+    text: "OK",
+    className: "badge ok"
+  };
+}
+
 function renderExecutionHistory() {
   $("inventoryMetricsTable").innerHTML =
     metricsHistory.map((item, index) => {
-      const hasResponse =
-        item.respuesta && item.respuesta.trim().length > 0;
-
-      const isSuccess = Number(item.success) === 1;
-      const isSlow = Number(item.latency_seconds || 0) > 20;
-      const isGeneral = item.intent === "general";
-
-      const shouldReview =
-        !isSuccess || !hasResponse || isSlow || isGeneral;
-
-      const resultText = shouldReview ? "Revisar" : "OK";
-      const resultClass = shouldReview ? "badge zero" : "badge ok";
+      const status = getExecutionStatus(item);
 
       return `
         <tr>
@@ -593,7 +622,7 @@ function renderExecutionHistory() {
           <td>${esc(shortText(item.mensaje || "—", 80))}</td>
           <td>${esc(item.intent || "—")}</td>
           <td>${Number(item.latency_seconds || 0).toFixed(4)} s</td>
-          <td><span class="${resultClass}">${resultText}</span></td>
+          <td><span class="${status.className}">${status.text}</span></td>
           <td>
             <button class="btn ghost" onclick="showMetricDetail(${index})">
               Ver detalle
@@ -773,61 +802,87 @@ function showMetricDetail(index) {
   const jsonValid = Number(item.orchestrator_json_valid) === 1;
   const schemaValid = Number(item.orchestrator_schema_valid) === 1;
   const serviceName = getServiceName(item.intent);
+  const status = getExecutionStatus(item);
 
   $("executionDetailPanel").classList.remove("hidden");
 
   $("executionDetailContent").innerHTML = `
-    <div class="timeline">
-      <div class="timeline-step">
-        <div class="timeline-index">1</div>
-        <div>
-          <h4>Usuario</h4>
-          <p>${esc(item.mensaje || "—")}</p>
-          <small>Número: ${esc(item.numero || "—")}</small>
-        </div>
+    <div class="pipeline">
+      <div class="pipeline-node">
+        <span>1</span>
+        <strong>Usuario</strong>
+        <small>Mensaje recibido</small>
       </div>
 
-      <div class="timeline-step">
-        <div class="timeline-index">2</div>
-        <div>
-          <h4>Backend /chat</h4>
-          <p>Petición recibida y registrada por FastAPI.</p>
-          <small>Fecha: ${esc(item.created_at || "—")}</small><br>
-          <small>Latencia total: ${Number(item.latency_seconds || 0).toFixed(4)} s</small>
-        </div>
+      <div class="pipeline-arrow">→</div>
+
+      <div class="pipeline-node">
+        <span>2</span>
+        <strong>Backend</strong>
+        <small>FastAPI /chat</small>
       </div>
 
-      <div class="timeline-step">
-        <div class="timeline-index">3</div>
-        <div>
-          <h4>Orquestador LLM</h4>
-          <p>Modelo: ${esc(item.orchestrator_model || "—")}</p>
-          <small>Intent LLM: ${esc(item.orchestrator_intent || "—")}</small><br>
-          <small>Confianza: ${Number(item.orchestrator_confidence || 0).toFixed(2)}</small><br>
-          <small>Tokens: ${esc(item.orchestrator_tokens || 0)}</small><br>
-          <small>JSON válido: ${jsonValid ? "Sí" : "No"}</small><br>
-          <small>Schema válido: ${schemaValid ? "Sí" : "No"}</small>
-        </div>
+      <div class="pipeline-arrow">→</div>
+
+      <div class="pipeline-node">
+        <span>3</span>
+        <strong>Orquestador</strong>
+        <small>${esc(item.orchestrator_model || "—")}</small>
       </div>
 
-      <div class="timeline-step">
-        <div class="timeline-index">4</div>
-        <div>
-          <h4>Servicio ejecutado</h4>
-          <p>${esc(serviceName)}</p>
-          <small>Intent final: ${esc(item.intent || "—")}</small><br>
-          <small>Éxito: ${Number(item.success) === 1 ? "Sí" : "No"}</small><br>
-          <small>Error: ${esc(item.error || "—")}</small>
-        </div>
+      <div class="pipeline-arrow">→</div>
+
+      <div class="pipeline-node">
+        <span>4</span>
+        <strong>Servicio</strong>
+        <small>${esc(item.intent || "—")}</small>
       </div>
 
-      <div class="timeline-step">
-        <div class="timeline-index">5</div>
-        <div>
-          <h4>Respuesta al usuario</h4>
-          <p>${esc(item.respuesta || "—")}</p>
-        </div>
+      <div class="pipeline-arrow">→</div>
+
+      <div class="pipeline-node">
+        <span>5</span>
+        <strong>Respuesta</strong>
+        <small>${status.text}</small>
       </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="mini-item">
+        <div class="meta">Usuario</div>
+        <p>${esc(item.mensaje || "—")}</p>
+        <p><strong>Número:</strong> ${esc(item.numero || "—")}</p>
+      </div>
+
+      <div class="mini-item">
+        <div class="meta">Backend</div>
+        <p><strong>Fecha:</strong> ${esc(item.created_at || "—")}</p>
+        <p><strong>Latencia total:</strong> ${Number(item.latency_seconds || 0).toFixed(4)} s</p>
+        <p><strong>Resultado:</strong> <span class="${status.className}">${status.text}</span></p>
+      </div>
+
+      <div class="mini-item">
+        <div class="meta">Orquestador LLM</div>
+        <p><strong>Modelo:</strong> ${esc(item.orchestrator_model || "—")}</p>
+        <p><strong>Intent LLM:</strong> ${esc(item.orchestrator_intent || "—")}</p>
+        <p><strong>Confianza:</strong> ${Number(item.orchestrator_confidence || 0).toFixed(2)}</p>
+        <p><strong>Tokens:</strong> ${esc(item.orchestrator_tokens || 0)}</p>
+        <p><strong>JSON válido:</strong> ${jsonValid ? "Sí" : "No"}</p>
+        <p><strong>Schema válido:</strong> ${schemaValid ? "Sí" : "No"}</p>
+      </div>
+
+      <div class="mini-item">
+        <div class="meta">Servicio ejecutado</div>
+        <p><strong>Servicio:</strong> ${esc(serviceName)}</p>
+        <p><strong>Intent final:</strong> ${esc(item.intent || "—")}</p>
+        <p><strong>Éxito:</strong> ${Number(item.success) === 1 ? "Sí" : "No"}</p>
+        <p><strong>Error:</strong> ${esc(item.error || "—")}</p>
+      </div>
+    </div>
+
+    <div class="mini-item" style="margin-top: 14px;">
+      <div class="meta">Respuesta enviada al usuario</div>
+      <p>${esc(item.respuesta || "—")}</p>
     </div>
   `;
 
