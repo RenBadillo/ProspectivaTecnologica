@@ -31,3 +31,6 @@ npm-debug.log*
 .DS_Store
 Thumbs.db
 "@ | Out-File -Encoding utf8 .gitignore
+
+#api key 
+backend\app\vision\.env
