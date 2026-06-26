@@ -8,13 +8,15 @@ let BOT_READY_AT = null;
 let BOT_READY_AT_SECONDS = null;
 const processedMessages = new Set();
 
+require("dotenv").config();
+
 const client = new Client({
     authStrategy: new LocalAuth({
         dataPath: './.wwebjs_auth'
     }),
     puppeteer: {
         headless: false,
-        executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+        executablePath: process.env.CHROME_PATH, // Direccion que tiene que poner Ren en .env-->'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
         args: ['--no-sandbox', '--disable-setuid-sandbox']
     }
 });
