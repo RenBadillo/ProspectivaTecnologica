@@ -249,6 +249,10 @@ class ChatRouterService:
             )
 
         elif intent == "inventory":
+            #aqui se tomará la foto
+            #se generará el json del vlm
+            #se comparará con el json actual
+            #se quitará la diferencia de la base de datos
             response = self.handle_inventory()
 
         elif intent == "inventory_analysis":
