@@ -63,6 +63,8 @@ def detectar_alimentos(image_path:str):
     Jugo pera Jumex
     Bebida Energetica Red bull
     Refresco CocaCola
+    Platanos
+    Cereal Nesquik
 
     No respondas con alimentos que no estén en la lista.
     

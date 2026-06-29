@@ -31,6 +31,8 @@ async def recibir_mensaje(
 ):
     start_time = time.perf_counter()
 
+    orchestrator = None
+
     try:
         result = await chat_router.handle_message(
             entrada.numero,

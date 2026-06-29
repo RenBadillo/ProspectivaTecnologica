@@ -9,7 +9,7 @@ from app.services.meal_plan_service import MealPlanService
 from app.services.nutrition_service import NutritionService
 from app.services.recipe_service import RecipeService
 from app.services.shopping_service import ShoppingService
-from app.vision.vision_camera import visionCamera
+from app.vision.vision_inventory import VisionInventory
 
 print(">>> CHAT_ROUTER_SERVICE CARGADO <<<")
 
@@ -19,7 +19,7 @@ class ChatRouterService:
     registration_sessions = {}
 
     def __init__(self):
-        self.camera = visionCamera()
+        self.visionInv = VisionInventory()
         self.inventory_service = InventoryService()
         self.inventory_analysis_service = InventoryAnalysisService()
         self.recipe_service = RecipeService()
@@ -261,12 +261,11 @@ class ChatRouterService:
 
             
             #aqui se tomará la foto
-            print("Se entró a inventory")
-            self.camera.capture()
-            print("Foto tomada")
+            
             #se generará el json del vlm
             #se comparará con el json actual
             #se quitará la diferencia de la base de datos
+            self.visionInv.sync_inventory()
             response = self.handle_inventory()
 
         elif intent == "inventory_analysis":

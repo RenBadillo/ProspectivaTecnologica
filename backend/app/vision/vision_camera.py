@@ -32,7 +32,7 @@ class visionCamera:
     def request_capture(self):
 
         response = requests.post(
-            "http://192.168.100.78/capture",
+            "http://172.22.105.12/capture",
             timeout=10
         )
 

@@ -7,6 +7,8 @@ from app.database.connection import get_connection
 
 class InventoryService:
 
+    FOOD
+
     PERISHABLE_RULES = {
         "cooked_food": {
             "keywords": [
@@ -194,8 +196,8 @@ class InventoryService:
                 source,
                 last_update,
                 COALESCE(added_at, last_update) AS added_at
-            FROM inventory
-            ORDER BY name ASC
+                FROM inventory
+                ORDER BY name ASC
             """
         )
 
