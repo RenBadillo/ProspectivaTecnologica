@@ -5,9 +5,26 @@ from datetime import datetime
 from app.database.connection import get_connection
 
 
-class InventoryService:
+class UnknownFoodError(Exception):
 
-    FOOD
+    def __init__(self, food_name):
+        self.food_name = food_name
+        super().__init__(
+            f"Alimento no soportado: {food_name}"
+        )
+
+
+FOODS_PATH = (
+    Path(__file__).resolve().parent.parent
+    / "data"
+    / "foods.json"
+)
+
+with open(FOODS_PATH, encoding="utf-8") as f:
+    FOODS = json.load(f)
+
+
+class InventoryService:
 
     PERISHABLE_RULES = {
         "cooked_food": {
@@ -75,15 +92,69 @@ class InventoryService:
         }
     }
 
-    def load_inventory(self):
-        path = (
-            Path(__file__).resolve().parent.parent
-            / "data"
-            / "inventario.json"
-        )
+    @staticmethod
+    def load_aliases():
 
-        with open(path, "r", encoding="utf-8") as file:
-            return json.load(file)
+        aliases = {}
+
+        replacements = {
+        "á":"a",
+        "é":"e",
+        "í":"i",
+        "ó":"o",
+        "ú":"u"
+        }
+
+        def normalize(text):
+            text = text.lower()
+            for old, new in replacements.items():
+                text = text.replace(old, new)
+            return text.strip()
+
+        for canonical_name, info in FOODS.items():
+
+            aliases[normalize(canonical_name)] = canonical_name
+
+            for alias in info["aliases"]:
+                aliases[normalize(alias)] = canonical_name
+
+        return aliases
+    
+    FOOD_ALIASES = load_aliases()
+    
+    def canonicalize_name(self, name: str)->str:
+
+        #print(f"original: '{name}'")
+
+        name = self.normalize(name)
+
+        #print(f"canonico: '{name}'")
+
+        canonical = self.FOOD_ALIASES.get(name)
+
+        if canonical is None:
+            raise UnknownFoodError(
+                f"'{name}' no pertenece al catálogo de alimentos."
+            )
+
+        return canonical
+
+    def normalize(self, text):
+
+        text = text.lower()
+
+        replacements = {
+            "á":"a",
+            "é":"e",
+            "í":"i",
+            "ó":"o",
+            "ú":"u"
+        }
+
+        for old, new in replacements.items():
+            text = text.replace(old, new)
+
+        return text.strip()
 
     def add_food(
         self,
@@ -94,6 +165,10 @@ class InventoryService:
 
         conn = get_connection()
         cursor = conn.cursor()
+
+        #hacer canonico el nombre
+
+        name = self.canonicalize_name(name)
 
         cursor.execute(
             """
@@ -113,7 +188,7 @@ class InventoryService:
                 last_update = CURRENT_TIMESTAMP
             """,
             (
-                name.lower().strip(),
+                name,
                 quantity,
                 source
             )
@@ -131,6 +206,8 @@ class InventoryService:
         conn = get_connection()
         cursor = conn.cursor()
 
+        name = self.canonicalize_name(name)
+
         cursor.execute(
             """
             UPDATE inventory
@@ -142,7 +219,7 @@ class InventoryService:
             """,
             (
                 quantity,
-                name.lower().strip(),
+                name,
                 quantity
             )
         )
@@ -158,6 +235,9 @@ class InventoryService:
         old_name: str,
         new_name: str
     ) -> bool:
+        
+        old_name = self.canonicalize_name(old_name)
+        new_name = self.canonicalize_name(new_name)
 
         conn = get_connection()
         cursor = conn.cursor()
@@ -171,8 +251,8 @@ class InventoryService:
             WHERE name = ?
             """,
             (
-                new_name.lower().strip(),
-                old_name.lower().strip()
+                new_name,
+                old_name
             )
         )
 
@@ -238,7 +318,7 @@ class InventoryService:
         name: str
     ) -> dict:
 
-        clean_name = name.lower().strip()
+        clean_name = self.canonicalize_name(name)
 
         for category, rule in self.PERISHABLE_RULES.items():
             for keyword in rule["keywords"]:

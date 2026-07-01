@@ -1,0 +1,352 @@
+{
+    "Atún": {
+        "aliases": [
+            "atun",
+            "lata de atun",
+            "atun en agua",
+            "atun en aceite",
+            "atun dolores",
+            "atun tuny",
+            "atun herdez",
+            "lata atun",
+            "atun lata",
+            "atún"
+        ]
+    },
+    "Frijoles": {
+        "aliases": [
+            "frijol",
+            "frijoles",
+            "frijoles negros",
+            "frijoles bayos",
+            "frijoles refritos",
+            "frijol negro",
+            "frijol bayo",
+            "lata de frijoles",
+            "frijoles isadora",
+            "frijoles la sierra"
+        ]
+    },
+    "Refresco Ameyal":{
+        "aliases": [
+            "ameyal",
+            "refresco ameyal"
+        ]
+    },
+    "Yogur": {
+        "aliases": [
+            "yogur",
+            "yogurt",
+            "yoghurt",
+            "yogurt griego",
+            "yogurt natural",
+            "yogur bebible",
+            "yogurth",
+            "yogurt danone",
+            "yogurt lala",
+            "yogurt yoplait"
+        ]
+    },
+    "Mangos": {
+        "aliases": [
+            "mango",
+            "mangos",
+            "mango ataulfo",
+            "mango manila",
+            "mango petacon",
+            "mangos kilo",
+            "kg de mango"
+        ]
+    },
+    "Paquete Danonino": {
+        "aliases": [
+            "danonino",
+            "paquete danonino",
+            "danonino paquete",
+            "danoninos",
+            "queso danonino",
+            "danonino fresa",
+            "danonino para beber"
+        ]
+    },
+    "Paquete Gelatina Dany": {
+        "aliases": [
+            "gelatina dany",
+            "paquete gelatina dany",
+            "dany",
+            "gelatinas dany",
+            "dany gelatina",
+            "dany fresa",
+            "dany uva"
+        ]
+    },
+    "Jugo mango Jumex": {
+        "aliases": [
+            "jumex mango",
+            "jugo mango jumex",
+            "jumez de mango",
+            "jumex de mango",
+            "jumex d mango",
+            "jumex laton mango",
+            "jumex tetra mango",
+            "jugo jumex mango",
+            "nectar mango jumex",
+            "jugo de mango jumex"
+        ]
+    },
+    "Cereal Trix": {
+        "aliases": [
+            "trix",
+            "cereal trix",
+            "trix cereal",
+            "cereal de bolitas",
+            "trix bolitas",
+            "trix nestle"
+        ]
+    },
+    "Cartón Nutri Leche": {
+        "aliases": [
+            "nutri leche",
+            "carton nutri leche",
+            "nutrileche",
+            "nutri leche carton",
+            "leche nutri",
+            "nutri leche 1l",
+            "nutri leche tetrapack"
+        ]
+    },
+    "Cartón LALA leche": {
+        "aliases": [
+            "lala",
+            "leche lala",
+            "carton lala leche",
+            "leche lala carton",
+            "lala leche",
+            "lala 1 litro",
+            "leche entera lala",
+            "tetrapack lala"
+        ]
+    },
+    "Aceite Nutrioli": {
+        "aliases": [
+            "nutrioli",
+            "aceite nutrioli",
+            "aceite nutrioli 1l",
+            "nutrioli aceite",
+            "aceite nutrioli puro",
+            "aceite para cocinar nutrioli",
+            "botella nutrioli"
+        ]
+    },
+    "Botella Bonafont": {
+        "aliases": [
+            "bonafont",
+            "agua bonafont",
+            "bonafont 1l",
+            "bonafont 1.5l",
+            "agua natural bonafont",
+            "botella de agua bonafont",
+            "bonafont litro"
+        ]
+    },
+    "Chocolate Larín": {
+        "aliases": [
+            "larin",
+            "chocolate larin",
+            "larin chocolate",
+            "chocolate para mesa larin",
+            "larin barra",
+            "larin en polvo"
+        ]
+    },
+    "Mantequilla Primavera": {
+        "aliases": [
+            "primavera",
+            "mantequilla primavera",
+            "mantequilla con sal primavera",
+            "mantequilla sin sal primavera",
+            "primavera mantequilla",
+            "barra primavera"
+        ]
+    },
+    "ChocoMilk": {
+        "aliases": [
+            "chocomilk",
+            "choco milk",
+            "polvo chocomilk",
+            "chocomilk bote",
+            "chocomil",
+            "chocolate chocomilk",
+            "chocomilk fresa"
+        ]
+    },
+    "Paquete Espagueti": {
+        "aliases": [
+            "espagueti",
+            "paquete espagueti",
+            "spaghetti",
+            "espaguetti",
+            "pasta espagueti",
+            "espagueti barilla",
+            "espagueti la moderna",
+            "paq espagueti",
+            "sopas espagueti"
+        ]
+    },
+    "Jugo de fresa Boing": {
+        "aliases": [
+            "boing fresa",
+            "jugo boing fresa",
+            "boing de fresa",
+            "boing tetrapack fresa",
+            "jugo boing",
+            "boing sabor fresa",
+            "boing 500ml fresa"
+        ]
+    },
+    "Papas Pringles": {
+        "aliases": [
+            "pringles",
+            "papas pringles",
+            "pringles originales",
+            "pringles lata",
+            "papas de tubo pringles",
+            "pringles crema",
+            "pringles queso"
+        ]
+    },
+    "Jugo mango Del Valle": {
+        "aliases": [
+            "del valle mango",
+            "jugo mango del valle",
+            "del valle de mango",
+            "jugo del valle mango",
+            "nectar del valle mango",
+            "del valle tetrapack mango"
+        ]
+    },
+    "Salsa de tomate": {
+        "aliases": [
+            "catsup",
+            "salsa tomate",
+            "ketchup",
+            "catsup heinz",
+            "catsup clemente",
+            "salsa de tomate heinz",
+            "pure de tomate",
+            "salsa catsup"
+        ]
+    },
+    "Mayonesa McCormick": {
+        "aliases": [
+            "mayonesa",
+            "mccormick",
+            "mayonesa mccormick",
+            "mayonesa con limon",
+            "mayonesa mccormik",
+            "mayonesa macormick",
+            "mayonesa frasco",
+            "mayonesa mccormick 390g"
+        ]
+    },
+    "Sal La Fina": {
+        "aliases": [
+            "sal",
+            "la fina",
+            "sal la fina",
+            "sal de mesa la fina",
+            "sal fina",
+            "bote de sal la fina",
+            "sal refinada la fina",
+            "la fina sal"
+        ]
+    },
+    "Jugo FuseTea": {
+        "aliases": [
+            "fusetea",
+            "fuse tea",
+            "fuse",
+            "te fusetea",
+            "fusetea durazno",
+            "fusetea limon",
+            "jugo fuse tea",
+            "te negro fusetea",
+            "fiusti",
+            "fueseti"
+        ]
+    },
+    "Jugo pera Jumex": {
+        "aliases": [
+            "jumex pera",
+            "jugo jumex pera",
+            "jumex de pera",
+            "jumez pera",
+            "nectar pera jumex",
+            "jumex lata pera",
+            "jumex tetrapack pera",
+            "jugo de pera jumex"
+        ]
+    },
+    "Bebida Energética Red Bull": {
+        "aliases": [
+            "red bull",
+            "redbull",
+            "redbul",
+            "lata red bull",
+            "energetica red bull",
+            "bebida red bull",
+            "red bull 250ml",
+            "redbull lata azul"
+        ]
+    },
+    "Refresco CocaCola": {
+        "aliases": [
+            "coca",
+            "coca cola",
+            "cocacola",
+            "coca-cola",
+            "coca 600ml",
+            "coca lata",
+            "refresco coca",
+            "coca normal",
+            "coca light",
+            "coca zero"
+        ]
+    },
+    "Plátanos": {
+        "aliases": [
+            "platano",
+            "platanos",
+            "banana",
+            "banano",
+            "platano tabasco",
+            "platano dominico",
+            "platanos kilo",
+            "kg de platano",
+            "plátano",
+            "plátanos"
+        ]
+    },
+    "Cereal Nesquik": {
+        "aliases": [
+            "nesquik",
+            "cereal nesquik",
+            "nesquick",
+            "cereal de chocolate nesquik",
+            "nesquik cereal",
+            "nesquik nestle",
+            "cereal bolitas nesquik"
+        ]
+    },
+    "Cereal ChocoKrispis":{
+        "aliases":[
+            "chococrispis",
+            "chocokrispis"
+        ]
+    },
+    "Refresco Fanta":{
+        "aliases":[
+            "fanta"
+        ]
+    }
+}

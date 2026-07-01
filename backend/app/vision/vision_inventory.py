@@ -29,9 +29,9 @@ class VisionInventory:
     
     def compare_inv(self,current,detected):
 
-        inventory_current_names = {self.normalize(item["name"]) for item in current}
+        inventory_current_names = {item["name"] for item in current}
 
-        inventory_detected_names = {self.normalize(item["name"]) for item in detected["foods"]}
+        inventory_detected_names = {item["name"] for item in detected["foods"]}
 
         faltantes = inventory_current_names - inventory_detected_names
 
@@ -46,22 +46,6 @@ class VisionInventory:
 
         }
 
-    def normalize(self, name):
-
-        name = name.lower()
-
-        replacements = {
-            "á":"a",
-            "é":"e",
-            "í":"i",
-            "ó":"o",
-            "ú":"u"
-        }
-
-        for old,new in replacements.items():
-            name = name.replace(old,new)
-
-        return name.strip()
     
     def apply_changes(self,changes):
 

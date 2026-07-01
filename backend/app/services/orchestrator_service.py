@@ -26,81 +26,83 @@ class OrchestratorService:
     async def decide(self, message: str) -> dict:
 
         prompt = f"""
-Eres un agente orquestador para una alacena inteligente.
+        Eres un agente orquestador para una alacena inteligente.
 
-Tu tarea es interpretar lenguaje natural y devolver SOLO un JSON válido.
+        Tu tarea es interpretar lenguaje natural y devolver SOLO un JSON válido.
 
-No respondas al usuario final.
-No uses markdown.
-No agregues texto fuera del JSON.
+        No respondas al usuario final.
+        No uses markdown.
+        No agregues texto fuera del JSON.
 
-INTENTS PERMITIDOS:
-inventory, add_inventory, remove_inventory, rename_inventory, recipe, shopping, meal_plan, nutrition, reminders, profile_register, general.
+        INTENTS PERMITIDOS:
+        inventory, add_inventory, remove_inventory, rename_inventory, recipe, shopping, meal_plan, nutrition, reminders, profile_register, general.
 
-ESQUEMA OBLIGATORIO:
-{{
-  "intent": "add_inventory",
-  "action": "add_food",
-  "confidence": 0.95,
-  "entities": {{
-    "items": [
-      {{
-        "name": "mangos",
-        "quantity": 2
-      }}
-    ],
-    "old_name": null,
-    "new_name": null
-  }},
-  "needs_profile": false,
-  "reason": "El usuario indica que compró productos para agregarlos al inventario."
-}}
+        ESQUEMA OBLIGATORIO:
+        {{
+        "intent": "add_inventory",
+        "action": "add_food",
+        "confidence": 0.95,
+        "entities": {{
+            "items": [
+            {{
+                "name": "mangos",
+                "quantity": 2
+            }}
+            ],
+            "old_name": null,
+            "new_name": null
+        }},
+        "needs_profile": false,
+        "reason": "El usuario indica que compró productos para agregarlos al inventario."
+        }}
 
-REGLAS DE INTENT:
-- Si pregunta qué tiene, qué productos hay, qué comida queda, qué hay en la alacena o despensa: inventory.
-- Si dice compré, compre, agregué, agregue, mete, añade, registra, sumé, llegó, tengo ahora: add_inventory.
-- Si dice quita, elimina, borra, me comí, consumí, usé, gasté, ya no tengo: remove_inventory.
-- Si dice cambia, corrige, renombra, era, quise decir, sustituye nombre: rename_inventory.
-- Si pide receta, comida o qué cocinar: recipe.
-- Si pide lista de compras, súper o qué comprar: shopping.
-- Si pide plan semanal, dieta o plan alimenticio: meal_plan.
-- Si pide calorías, macros, TMB o GET: nutrition.
-- Si pregunta qué consumir pronto o qué se puede echar a perder: reminders.
-- Si quiere registrar datos personales: profile_register.
-- Si no queda claro: general.
+        REGLAS DE INTENT:
+        - Si pregunta qué tiene, qué productos hay, qué comida queda, qué hay en la alacena o despensa: inventory.
+        - Si dice compré, compre, agregué, agregue, mete, añade, registra, sumé, llegó, tengo ahora: add_inventory.
+        - Si dice quita, elimina, borra, me comí, consumí, usé, gasté, ya no tengo: remove_inventory.
+        - Si dice cambia, corrige, renombra, era, quise decir, sustituye nombre: rename_inventory.
+        - Si pide receta, comida o qué cocinar: recipe.
+        - Si pide lista de compras, súper o qué comprar: shopping.
+        - Si pide plan semanal, dieta o plan alimenticio: meal_plan.
+        - Si pide calorías, macros, TMB o GET: nutrition.
+        - Si pregunta qué consumir pronto o qué se puede echar a perder: reminders.
+        - Si quiere registrar datos personales: profile_register.
+        - Si no queda claro: general.
 
-REGLAS DE ENTIDADES:
-- Para add_inventory y remove_inventory extrae entities.items.
-- Cada item debe tener:
-  - name: nombre del producto en plural o nombre natural.
-  - quantity: número entero.
-- Convierte cantidades escritas con palabras:
-  - "un", "una" = 1
-  - "dos" = 2
-  - "tres" = 3
-  - "cuatro" = 4
-  - "cinco" = 5
-  - "seis" = 6
-  - "siete" = 7
-  - "ocho" = 8
-  - "nueve" = 9
-  - "diez" = 10
-- Si el usuario dice "Compré dos mangos", devuelve:
-  "items": [{{"name": "mangos", "quantity": 2}}]
-- Si dice "Compré una leche y dos huevos", devuelve dos items.
-- Si no hay cantidad explícita, usa quantity = 1.
+        REGLAS DE ENTIDADES:
+        - Para add_inventory y remove_inventory extrae entities.items.
+        - Cada item debe tener:
+        - name: nombre del producto en plural o nombre natural.
+        - quantity: número entero.
+        - Convierte cantidades escritas con palabras:
+        - "un", "una" = 1
+        - "dos" = 2
+        - "tres" = 3
+        - "cuatro" = 4
+        - "cinco" = 5
+        - "seis" = 6
+        - "siete" = 7
+        - "ocho" = 8
+        - "nueve" = 9
+        - "diez" = 10
+        - Si el usuario dice "Compré dos mangos", devuelve:
+        "items": [{{"name": "mangos", "quantity": 2}}]
+        - Si dice "Compré una leche y dos huevos", devuelve dos items.
+        - Si no hay cantidad explícita, usa quantity = 1.
 
-REGLAS PARA RENOMBRAR:
-- Para rename_inventory usa:
-  "old_name": nombre anterior
-  "new_name": nombre corregido
-- Ejemplo: "cambia cooper por cereal"
-  old_name = "cooper"
-  new_name = "cereal"
+        REGLAS PARA RENOMBRAR:
+        - Para rename_inventory usa:
+        "old_name": nombre anterior
+        "new_name": nombre corregido
+        - Ejemplo: "cambia cooper por cereal"
+        old_name = "cooper"
+        new_name = "cereal"
 
-MENSAJE DEL USUARIO:
-{message}
-"""
+        Devuelve el nombre completo del alimento exactamente como lo menciona el usuario cuando sea posible.
+
+        MENSAJE DEL USUARIO:
+        {message}
+        """
 
         response = await self.llm_service.generate(
             prompt=prompt,
